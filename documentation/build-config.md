@@ -148,7 +148,7 @@ BKRY_DATE
 BKRY_TIME
 ```
 
-To get the up to date list please refere to [BUILT_IN_CONTEXT_VARIABLES](https://github.com/Mikrodidakt/bakery/blob/main/src/data/context.rs#L13). Some of the "built-in" context variables will be exposed to the bitbake environment by getting included to the local.conf. To get a list of what context variables a build config offeres and the values of them run the [list](sub-commands.md#context) sub-command with --ctx flag.
+To get the up to date list please refere to [BUILT_IN_CONTEXT_VARIABLES](https://github.com/yanctab/bakery/blob/main/src/data/context.rs#L13). Some of the "built-in" context variables will be exposed to the bitbake environment by getting included to the local.conf. To get a list of what context variables a build config offeres and the values of them run the [list](sub-commands.md#context) sub-command with --ctx flag.
 
 ## BKRY_DATE and BKRY_TIME
 

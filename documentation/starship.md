@@ -26,7 +26,7 @@ The actual starship config can be found at
 when the bakery deb package has been installed in the bakery project it can
 be found at 
 
-    https://github.com/Mikrodidakt/bakery/blob/main/scripts/bkry-starship.toml
+    https://github.com/yanctab/bakery/blob/main/scripts/bkry-starship.toml
 
 The default starship config is based on
 

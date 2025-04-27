@@ -1,4 +1,4 @@
-[![Build & Test](https://github.com/Mikrodidakt/bakery/actions/workflows/buildntest.yml/badge.svg)](https://github.com/Mikrodidakt/bakery/actions/workflows/buildntest.yml) [![Release](https://github.com/Mikrodidakt/bakery/actions/workflows/release.yml/badge.svg)](https://github.com/Mikrodidakt/bakery/actions/workflows/release.yml)
+[![Build & Test](https://github.com/yanctab/bakery/actions/workflows/buildntest.yml/badge.svg)](https://github.com/yanctab/bakery/actions/workflows/buildntest.yml) [![Release](https://github.com/yanctab/bakery/actions/workflows/release.yml/badge.svg)](https://github.com/yanctab/bakery/actions/workflows/release.yml)
 
 # Bakery: Build Engine for the Yocto/OE Projects
 
@@ -18,7 +18,7 @@ Download one of the deb-packages releases.
 
 ```bash
 user@node:/dir$ BAKERY_VERSION=x.y.z
-user@node:/dir$ wget https://github.com/Mikrodidakt/bakery/releases/download/v${BAKERY_VERSION}/bakery-v${BAKERY_VERSION}.deb
+user@node:/dir$ wget https://github.com/yanctab/bakery/releases/download/v${BAKERY_VERSION}/bakery-v${BAKERY_VERSION}.deb
 user@node:/dir$ sudo dpkg -i bakery-v${BAKERY_VERSION}.deb
 ```
 
@@ -35,7 +35,7 @@ By default, Bakery utilizes Docker. Refer to the [Docker setup guide](documentat
 
 ```bash
 user@node:/dir$ BAKERY_VERSION=x.y.z
-user@node:/dir$ docker run -it ghcr.io/mikrodidakt/bakery/bakery-workspace:${BAKERY_VERSION} /bin/bash
+user@node:/dir$ docker run -it ghcr.io/yanctab/bakery/bakery-workspace:${BAKERY_VERSION} /bin/bash
 ```
 
 ## Usage

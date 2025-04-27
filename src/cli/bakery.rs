@@ -28,7 +28,7 @@ impl Bakery {
                 .subcommand_required(true)
                 .arg_required_else_help(true)
                 .about("Build engine for the Yocto/OE using docker")
-                .author("bakery by Mikrodidakt(mikro.io)"),
+                .author("bakery by yanctab(yanctab.com)"),
             None,
         );
 

@@ -4,7 +4,7 @@ By default, Bakery utilizes Docker and relies on the bakery-workspace image. Pre
 
 # Setup Docker
 
-There are multiple ways to install docker on your system and bakery has currently no preference. For reference on how to setup docker please see [setup-docker.sh](https://github.com/Mikrodidakt/bakery/blob/main/scripts/setup-docker.sh). This script currently supports setting up Docker on ubuntu and debian it is based on [Install Docker](https://docs.docker.com/engine/install/).
+There are multiple ways to install docker on your system and bakery has currently no preference. For reference on how to setup docker please see [setup-docker.sh](https://github.com/yanctab/bakery/blob/main/scripts/setup-docker.sh). This script currently supports setting up Docker on ubuntu and debian it is based on [Install Docker](https://docs.docker.com/engine/install/).
 
 ## Docker Group
 
@@ -23,13 +23,13 @@ The bakery workspace image can be pulled from Github Container Registry by runni
 ```bash
 user@node:/dir$ BAKERY_VERSION=$(bakery --version)
 user@node:/dir$ BAKERY_VERSION=${BAKERY_VERSION##* }
-user@node:/dir$ docker pull ghcr.io/mikrodidakt/bakery/bakery-workspace:${BAKERY_VERSION}
+user@node:/dir$ docker pull ghcr.io/yanctab/bakery/bakery-workspace:${BAKERY_VERSION}
 ```
 
 Opening a shell to the bakery-workspace can be done by running
 
 ```bash
-user@node:/dir$ docker run -it ghcr.io/mikrodidakt/bakery/bakery-workspace:${BAKERY_VERSION} /bin/bash
+user@node:/dir$ docker run -it ghcr.io/yanctab/bakery/bakery-workspace:${BAKERY_VERSION} /bin/bash
 ```
 
 ## Custom Worksapce Image

@@ -29,7 +29,7 @@ sync
 
 Currently bakery relay on bash and when the shell is started the /etc/bakery/bakery.bashrc needs to be sourced in by the /etc/bash.bashrc
 if the bakery integration has been done in the docker image used by bakery. For information on how to to accomplish it please see [custom workspace image](docker.mk# Custom Worksapce Image).
-The /etc/bakery.bashrc are available at https://github.com/Mikrodidakt/bakery/blob/main/scripts/bakery.bashrc.
+The /etc/bakery.bashrc are available at https://github.com/yanctab/bakery/blob/main/scripts/bakery.bashrc.
 
 ## Aliases
 

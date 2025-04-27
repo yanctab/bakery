@@ -775,7 +775,7 @@ mod tests {
         let work_dir: PathBuf = temp_dir.into_path();
         let mut mocked_system: MockSystem = MockSystem::new();
         let docker_image: DockerImage = DockerImage::new(&format!(
-            "ghcr.io/mikrodidakt/bakery/bakery-workspace:{}",
+            "ghcr.io/yanctab/bakery/bakery-workspace:{}",
             env!("CARGO_PKG_VERSION")
         ))
         .expect("Invalid docker image format");
@@ -848,7 +848,7 @@ mod tests {
             TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
         let work_dir: PathBuf = temp_dir.into_path();
         let docker_image: DockerImage = DockerImage::new(&format!(
-            "ghcr.io/mikrodidakt/bakery/bakery-workspace:{}",
+            "ghcr.io/yanctab/bakery/bakery-workspace:{}",
             env!("CARGO_PKG_VERSION")
         ))
         .expect("Invalid docker image format");
@@ -931,7 +931,7 @@ mod tests {
             TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
         let work_dir: PathBuf = temp_dir.into_path();
         let docker_image: DockerImage = DockerImage::new(&format!(
-            "ghcr.io/mikrodidakt/bakery/bakery-workspace:{}",
+            "ghcr.io/yanctab/bakery/bakery-workspace:{}",
             env!("CARGO_PKG_VERSION")
         ))
         .expect("Invalid docker image format");
@@ -1017,7 +1017,7 @@ mod tests {
             TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
         let work_dir: PathBuf = temp_dir.into_path();
         let docker_image: DockerImage = DockerImage::new(&format!(
-            "ghcr.io/mikrodidakt/bakery/bakery-workspace:{}",
+            "ghcr.io/yanctab/bakery/bakery-workspace:{}",
             env!("CARGO_PKG_VERSION")
         ))
         .expect("Invalid docker image format");

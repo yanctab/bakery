@@ -10,7 +10,7 @@ by setting up rust. Follow these steps:
 1. Clone the Bakery repository:
 
     ```bash
-    git clone git@github.com:Mikrodidakt/bakery.git
+    git clone git@github.com:yanctab/bakery.git
     cd bakery
     ```
 

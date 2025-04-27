@@ -6,7 +6,7 @@ use serde_json::Value;
 // read them from the Cargo.toml and then incorporate them
 // into the binary
 pub const _BAKERY_DOCKER_ARGS: [&str; 2] = ["--rm=true", "-t"];
-pub const BAKERY_DOCKER_IMAGE: &str = "mikrodidakt/bakery/bakery-workspace";
+pub const BAKERY_DOCKER_IMAGE: &str = "yanctab/bakery/bakery-workspace";
 pub const BAKERY_DOCKER_TAG: &str = env!("CARGO_PKG_VERSION");
 pub const BAKERY_DOCKER_REGISTRY: &str = "ghcr.io";
 
@@ -328,7 +328,7 @@ mod tests {
         let settings = Helper::setup_ws_settings(json_test_str);
         assert_eq!(
             &settings.docker_image,
-            "mikrodidakt/bakery/bakery-workspace"
+            "yanctab/bakery/bakery-workspace"
         );
     }
 
@@ -341,7 +341,7 @@ mod tests {
         let settings = Helper::setup_ws_settings(json_test_str);
         assert_eq!(
             &settings.docker_image,
-            "mikrodidakt/bakery/bakery-workspace"
+            "yanctab/bakery/bakery-workspace"
         );
     }
 
