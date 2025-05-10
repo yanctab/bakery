@@ -18,8 +18,8 @@ Download one of the deb-packages releases.
 
 ```bash
 user@node:/dir$ BAKERY_VERSION=x.y.z
-user@node:/dir$ wget https://github.com/yanctab/bakery/releases/download/v${BAKERY_VERSION}/bakery-v${BAKERY_VERSION}.deb
-user@node:/dir$ sudo dpkg -i bakery-v${BAKERY_VERSION}.deb
+user@node:/dir$ wget https://github.com/yanctab/bakery/releases/download/v${BAKERY_VERSION}/bakery-x86_64-musl-v${BAKERY_VERSION}.deb
+user@node:/dir$ sudo dpkg -i bakery-x86_64-musl-v${BAKERY_VERSION}.deb
 ```
 
 Because bakery is written in Rust bakery is a single binary depending only on libc. It will be installed under /usr/bin/bakery.
