@@ -3,9 +3,9 @@ set -e
 WORKSPACE=$(pwd)
 . ${WORKSPACE}/scripts/lib.sh
 SETTINGS_FILE=${WORKSPACE}/settings.json
-_ARTIFACT_SERVER="https://bakery.jfrog.io/baker"
+_ARTIFACT_SERVER="https://bakery.jfrog.io/bakery"
 _DOCKER_REGISTRY="ghcr.io"
-_DOCKER_IMAGE="mikrodidakt/bakery/bakery-workspace"
+_DOCKER_IMAGE="yanctab/bakery/bakery-workspace"
 _DOCKER_DIR=${WORKSPACE}/docker
 _DOCKER_TAG=$(get_bakery_version ${WORKSPACE}/Cargo.toml)
 _DOCKER_ARGS="--name bakery-workspace \

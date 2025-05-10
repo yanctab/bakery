@@ -31,7 +31,7 @@ Version: ${VERSION}
 Section: utils
 Priority: optional
 Architecture: all
-Maintainer: Mans <mans.zigher@mikro.io>
+Maintainer: Mans <mans.zigher@yanctab.com>
 Depends: bash, docker-ce | docker.io
 Description: Build engine for the Yocto/OE utilising docker
 EOT

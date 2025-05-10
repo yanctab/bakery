@@ -244,7 +244,7 @@ eyecandy() {
         echo ""
         echo "For more information please see"
         echo ""
-        echo "   "https://github.com/Mikrodidakt/bakery/blob/main/documentation/starship.md
+        echo "   "https://github.com/yanctab/bakery/blob/main/documentation/starship.md
         export BKRY_EYECANDY="true"
         bash
     else
