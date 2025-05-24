@@ -904,7 +904,7 @@ checksum = "3369f5ac52d5eb6ab48c6b4ffdc8efbcad6b89c765749064ba298f2c68a16a76"
 
 [[package]]
 name = "thebakery"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "bzip2",
  "chrono",
