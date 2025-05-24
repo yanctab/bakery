@@ -1,5 +1,9 @@
 FROM ubuntu:22.04
 
+LABEL org.opencontainers.image.source=https://github.com/yanctab/bakery
+LABEL org.opencontainers.image.description="Bakery Workspace"
+LABEL org.opencontainers.image.licenses=Apache-2.0
+
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
