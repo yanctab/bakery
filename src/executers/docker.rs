@@ -163,7 +163,6 @@ impl Docker {
         });
         v.append(&mut self.bakery());
         v.append(&mut self.etc_files());
-        v.append(&mut self.hidden_home_files());
         v.append(&mut self.docker_sock());
         v
     }
