@@ -89,7 +89,7 @@ impl BCommand for CleanCommand {
             // More then one task was specified on the command line
             for t_name in tasks {
                 let task: &WsTaskHandler = workspace.config().task(&t_name)?;
-                task.clean(cli, &workspace.config().build_data(), &env_variables)?;
+                task.clean(cli, &workspace.config().build_data(), &env_variables, true)?;
             }
         } else {
             // One task was specified on the command line or default was used
@@ -97,12 +97,12 @@ impl BCommand for CleanCommand {
             if task == "all" {
                 // The alias "all" was specified on the command line or it none was specified and "all" was used
                 for (_t_name, task) in workspace.config().tasks() {
-                    task.clean(cli, &workspace.config().build_data(), &env_variables)?;
+                    task.clean(cli, &workspace.config().build_data(), &env_variables, false)?;
                 }
             } else {
                 // One task was specified on the command line
                 let task: &WsTaskHandler = workspace.config().task(tasks.get(0).unwrap())?;
-                task.clean(cli, &workspace.config().build_data(), &env_variables)?;
+                task.clean(cli, &workspace.config().build_data(), &env_variables, true)?;
             }
         }
         Ok(())

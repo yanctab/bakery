@@ -87,6 +87,7 @@ impl WsTaskHandler {
         cli: &'a Cli,
         build_data: &WsBuildData,
         env_variables: &HashMap<String, String>,
+        force: bool,
     ) -> Result<(), BError> {
         let executer: Box<dyn TaskExecuter>;
 
@@ -98,7 +99,7 @@ impl WsTaskHandler {
             return Ok(());
         }
 
-        if !self.data.condition() {
+        if !force && !self.data.condition() {
             cli.info(format!(
                 "Task condition for task '{}' is not met, execution is skipped",
                 self.data.name()
