@@ -1,4 +1,4 @@
-use crate::configs::Config;
+use crate::configs::{Config, Context};
 use crate::error::BError;
 use serde_json::Value;
 
@@ -9,6 +9,14 @@ pub const _BAKERY_DOCKER_ARGS: [&str; 2] = ["--rm=true", "-t"];
 pub const BAKERY_DOCKER_IMAGE: &str = "yanctab/bakery/bakery-workspace";
 pub const BAKERY_DOCKER_TAG: &str = env!("CARGO_PKG_VERSION");
 pub const BAKERY_DOCKER_REGISTRY: &str = "ghcr.io";
+
+macro_rules! merge_field {
+    ($self:ident, $data:ident, $field:ident) => {
+        if $self.$field != $data.$field || !$data.$field.is_empty() {
+            $self.$field = std::mem::take(&mut $data.$field);
+        }
+    };
+}
 
 #[derive(Clone)]
 pub struct WsSettings {
@@ -28,6 +36,7 @@ pub struct WsSettings {
     pub docker_args: Vec<String>,
     pub docker_disabled: String,
     pub docker_top_dir: String,
+    pub docker_work_dir: String,
 }
 
 impl Config for WsSettings {}
@@ -51,6 +60,7 @@ impl WsSettings {
         let mut docker_args: Vec<String> = vec![];
         let mut docker_disabled: String = String::from("false");
         let mut docker_top_dir: String = String::from("");
+        let mut docker_work_dir: String = String::from("");
 
         match Self::get_value("workspace", &data) {
             Ok(ws_data) => {
@@ -104,6 +114,8 @@ impl WsSettings {
                 docker_args = Self::get_array_value("args", docker_data, Some(vec![]))?;
                 docker_top_dir =
                     Self::get_str_value("topdir", docker_data, Some(String::from("")))?;
+                docker_work_dir =
+                    Self::get_str_value("workdir", docker_data, Some(String::from("")))?;
             }
             Err(_err) => {}
         }
@@ -125,13 +137,49 @@ impl WsSettings {
             docker_args,
             docker_disabled,
             docker_top_dir,
+            docker_work_dir,
         })
+    }
+
+    pub fn expand_ctx(&mut self, ctx: &Context) -> Result<(), BError> {
+        self.configs_dir = ctx.expand_str(&self.configs_dir)?;
+        self.include_dir = ctx.expand_str(&self.include_dir)?;
+        self.builds_dir = ctx.expand_str(&self.builds_dir)?;
+        self.artifacts_dir = ctx.expand_str(&self.artifacts_dir)?;
+        self.scripts_dir = ctx.expand_str(&self.scripts_dir)?;
+        self.docker_dir = ctx.expand_str(&self.docker_dir)?;
+        self.cache_dir = ctx.expand_str(&self.cache_dir)?;
+        self.docker_tag = ctx.expand_str(&self.docker_tag)?;
+        self.docker_image = ctx.expand_str(&self.docker_image)?;
+        self.docker_registry = ctx.expand_str(&self.docker_registry)?;
+        self.docker_top_dir = ctx.expand_str(&self.docker_top_dir)?;
+        self.docker_work_dir = ctx.expand_str(&self.docker_work_dir)?;
+        Ok(())
+    }
+
+    pub fn merge(&mut self, data: &mut WsSettings) {
+        merge_field!(self, data, configs_dir);
+        merge_field!(self, data, include_dir);
+        merge_field!(self, data, builds_dir);
+        merge_field!(self, data, artifacts_dir);
+        merge_field!(self, data, scripts_dir);
+        merge_field!(self, data, docker_dir);
+        merge_field!(self, data, cache_dir);
+        merge_field!(self, data, docker_image);
+        merge_field!(self, data, docker_tag);
+        merge_field!(self, data, docker_registry);
+        merge_field!(self, data, docker_top_dir);
+        merge_field!(self, data, docker_work_dir);
+        self.docker_args
+            .extend(std::mem::take(&mut data.docker_args));
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::configs::{Context, WsSettings};
     use crate::helper::Helper;
+    use indexmap::{indexmap, IndexMap};
 
     #[test]
     fn test_settings_config_workspace_dirs() {
@@ -314,6 +362,19 @@ mod tests {
         }"#;
         let settings = Helper::setup_ws_settings(json_test_str);
         assert_eq!(&settings.docker_image, "test-workspace");
+    }
+
+    #[test]
+    fn test_settings_config_docker_work_dir() {
+        let json_test_str = r#"
+        {
+            "version": "5",
+            "docker": {
+                "workdir": "test"
+            }
+        }"#;
+        let settings = Helper::setup_ws_settings(json_test_str);
+        assert_eq!(&settings.docker_work_dir, "test");
     }
 
     #[test]
@@ -518,5 +579,198 @@ mod tests {
         }"#;
         let settings = Helper::setup_ws_settings(json_test_str);
         assert_eq!(settings.supported.is_empty(), true);
+    }
+
+    #[test]
+    fn test_settings_config_merge() {
+        let json_test1_str = r#"
+        {
+            "version": "5"
+        }"#;
+        let json_test2_str = r#"
+        {
+            "version": "5",
+            "workspace": {
+                "configsdir": "configs_test",
+                "includedir": "include_test",
+                "artifactsdir": "artifacts_test",
+                "buildsdir": "builds_test",
+                "scriptsdir": "scripts_test",
+                "dockerdir": "docker_test",
+                "cachedir": "cache_test"
+            },
+            "docker": {
+                "registry": "test-registry",
+                "image": "test-image",
+                "tag": "test",
+                "args": [
+                    "--rm=true",
+                    "-t",
+                    "--dns=8.8.8.8"
+                ]
+            }
+        }"#;
+        let mut settings1: WsSettings = Helper::setup_ws_settings(json_test1_str);
+        let mut settings2: WsSettings = Helper::setup_ws_settings(json_test2_str);
+        assert_eq!(settings1.configs_dir, "configs");
+        assert_eq!(settings1.include_dir, "configs/include");
+        assert_eq!(settings1.artifacts_dir, "artifacts");
+        assert_eq!(settings1.builds_dir, "builds");
+        assert_eq!(settings1.scripts_dir, "scripts");
+        assert_eq!(settings1.docker_dir, "docker");
+        assert_eq!(settings1.cache_dir, ".cache");
+        settings1.merge(&mut settings2);
+        assert_eq!(settings1.configs_dir, "configs_test");
+        assert_eq!(settings1.include_dir, "include_test");
+        assert_eq!(settings1.artifacts_dir, "artifacts_test");
+        assert_eq!(settings1.builds_dir, "builds_test");
+        assert_eq!(settings1.scripts_dir, "scripts_test");
+        assert_eq!(settings1.docker_dir, "docker_test");
+        assert_eq!(settings1.cache_dir, "cache_test");
+        assert_eq!(settings1.docker_registry, "test-registry");
+        assert_eq!(settings1.docker_image, "test-image");
+        assert_eq!(settings1.docker_tag, "test");
+        assert_eq!(
+            &settings1.docker_args,
+            &vec![
+                String::from("--rm=true"),
+                String::from("-t"),
+                String::from("--dns=8.8.8.8")
+            ]
+        );
+    }
+
+    #[test]
+    fn test_settings_config_merge_mix() {
+        /*
+         * TODO: this merging logic is not fully working. The idea is that we should
+         * have a hirarchy of workspace.json files one in the actual workspace and then
+         * one under ~/.deej/workspace.json where these two are being merge. We are not
+         * using it jet so it is fine as it is for now but if it is going to be used we
+         * need to fix it. The file under ~/.deej/workspace.json is the one with higher
+         * priority so any value in this one should be be prioritized over a value in
+         * the workspace.json in the actual workspace.
+         */
+        let json_test1_str = r#"
+        {
+            "version": "5",
+            "workspace": {
+                "configsdir": "configs_test1",
+                "includedir": "include_test",
+                "artifactsdir": "artifacts_test1",
+                "buildsdir": "builds_test",
+                "scriptsdir": "scripts_test1",
+                "dockerdir": "docker_test",
+                "cachedir": "cache_test1"
+            },
+            "cmdlogger": {
+                "disable": "false"
+            },
+            "docker": {
+                "registry": "test-registry",
+                "image": "test-image1",
+                "tag": "test1",
+                "args": [
+                    "--rm=true",
+                    "-t",
+                    "--dns=8.8.8.8"
+                ]
+            }
+        }"#;
+        let json_test2_str = r#"
+        {
+            "version": "5",
+            "workspace": {
+                "configsdir": "configs_test2",
+                "includedir": "include_test",
+                "artifactsdir": "artifacts_test2",
+                "buildsdir": "builds_test",
+                "scriptsdir": "scripts_test2",
+                "dockerdir": "docker_test",
+                "cachedir": "cache_test2"
+            },
+            "cmdlogger": {
+                "disable": "true"
+            },
+            "docker": {
+                "registry": "test-registry2",
+                "image": "test-image2",
+                "tag": "test2",
+                "args": [
+                    "--network=host"
+                ]
+            }
+        }"#;
+        let mut settings1: WsSettings = Helper::setup_ws_settings(json_test1_str);
+        let mut settings2: WsSettings = Helper::setup_ws_settings(json_test2_str);
+        assert_eq!(settings1.configs_dir, "configs_test1");
+        assert_eq!(settings1.include_dir, "include_test");
+        assert_eq!(settings1.artifacts_dir, "artifacts_test1");
+        assert_eq!(settings1.builds_dir, "builds_test");
+        assert_eq!(settings1.scripts_dir, "scripts_test1");
+        assert_eq!(settings1.docker_dir, "docker_test");
+        assert_eq!(settings1.cache_dir, "cache_test1");
+        assert_eq!(settings1.docker_registry, "test-registry");
+        assert_eq!(settings1.docker_image, "test-image1");
+        assert_eq!(settings1.docker_tag, "test1");
+        settings1.merge(&mut settings2);
+        assert_eq!(settings1.configs_dir, "configs_test2");
+        assert_eq!(settings1.include_dir, "include_test");
+        assert_eq!(settings1.artifacts_dir, "artifacts_test2");
+        assert_eq!(settings1.builds_dir, "builds_test");
+        assert_eq!(settings1.scripts_dir, "scripts_test2");
+        assert_eq!(settings1.docker_dir, "docker_test");
+        assert_eq!(settings1.cache_dir, "cache_test2");
+        assert_eq!(settings1.docker_registry, "test-registry2");
+        assert_eq!(settings1.docker_image, "test-image2");
+        assert_eq!(settings1.docker_tag, "test2");
+        assert_eq!(
+            &settings1.docker_args,
+            &vec![
+                String::from("--rm=true"),
+                String::from("-t"),
+                String::from("--dns=8.8.8.8"),
+                String::from("--network=host")
+            ]
+        );
+    }
+
+    #[test]
+    fn test_settings_config_context() {
+        let json_test_str = r#"
+        {
+            "version": "5",
+            "workspace": {
+                "configsdir": "configs_$#[VAR1]",
+                "includedir": "include_test",
+                "artifactsdir": "artifacts_$#[VAR2]",
+                "buildsdir": "builds_test",
+                "scriptsdir": "scripts_test2",
+                "dockerdir": "docker_test",
+                "cachedir": "cache_test2"
+            },
+            "docker": {
+                "registry": "test-registry-$#[VAR3]",
+                "image": "test-image-$#[VAR4]",
+                "tag": "test2",
+                "args": [
+                    "--network=host"
+                ]
+            }
+        }"#;
+        let mut settings: WsSettings = Helper::setup_ws_settings(json_test_str);
+        let variables: IndexMap<String, String> = indexmap! {
+            "VAR1".to_string() => "var1".to_string(),
+            "VAR2".to_string() => "var2".to_string(),
+            "VAR3".to_string() => "var3".to_string(),
+            "VAR4".to_string() => "var4".to_string()
+        };
+        let ctx: Context = Context::new(&variables);
+        settings.expand_ctx(&ctx).unwrap();
+        assert_eq!(settings.configs_dir, "configs_var1");
+        assert_eq!(settings.include_dir, "include_test");
+        assert_eq!(settings.artifacts_dir, "artifacts_var2");
+        assert_eq!(settings.docker_registry, "test-registry-var3");
+        assert_eq!(settings.docker_image, "test-image-var4");
     }
 }

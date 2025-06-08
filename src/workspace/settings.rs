@@ -1,3 +1,4 @@
+use crate::configs::Context;
 use crate::error::BError;
 use crate::{configs::WsSettings, executers::DockerImage};
 
@@ -137,6 +138,20 @@ impl WsSettingsHandler {
 
     pub fn supported_builds(&self) -> &Vec<String> {
         &self.ws_settings.supported
+    }
+
+    pub fn expand_ctx(&mut self, ctx: &Context) -> Result<(), BError> {
+        self.ws_settings.expand_ctx(ctx)?;
+        Ok(())
+    }
+
+    pub fn merge(&mut self, data: &mut WsSettingsHandler) {
+        self.ws_settings.merge(&mut data.config().clone());
+        self.docker = DockerImage {
+            image: self.ws_settings.docker_image.clone(),
+            tag: self.ws_settings.docker_tag.clone(),
+            registry: self.ws_settings.docker_registry.clone(),
+        };
     }
 }
 

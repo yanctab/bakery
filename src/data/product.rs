@@ -1,3 +1,4 @@
+use crate::configs::Context;
 use crate::configs::Config;
 use crate::error::BError;
 use serde_json::Value;
@@ -63,6 +64,11 @@ impl WsProductData {
             self.name, self.arch, self.description
         );
         product_str.clone()
+    }
+
+    pub fn expand_ctx(&mut self, _ctx: &Context) -> Result<(), BError> {
+        // Add call to expand ctx in any of the variables
+        Ok(())
     }
 }
 

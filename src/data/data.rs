@@ -233,8 +233,9 @@ impl WsBuildData {
     }
 
     pub fn expand_ctx(&mut self) -> Result<(), BError> {
-        //self.config.expand_ctx(self.context.ctx());
-        //self.product.expand_ctx(self.context.ctx());
+        self.config.expand_ctx(self.context.ctx())?;
+        self.product.expand_ctx(self.context.ctx())?;
+        self.settings.expand_ctx(self.context.ctx())?;
         self.bitbake.expand_ctx(self.context.ctx())?;
         Ok(())
     }
