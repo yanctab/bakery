@@ -3,6 +3,7 @@ use crate::commands::BCommand;
 use crate::configs::WsConfigFileHandler;
 use crate::error::BError;
 use crate::workspace::{Workspace, WsBuildConfigHandler, WsSettingsHandler};
+use crate::executers::Docker;
 
 use clap::Command;
 use std::path::PathBuf;
@@ -35,10 +36,33 @@ impl Bakery {
         Bakery { cli: cli }
     }
 
-    pub fn unwrap_or_exit<T>(&self, result: Result<T, BError>) -> T {
+    pub fn bkry_exit(
+        &self,
+        cmd: &String,
+        err: &String,
+        code: i32) -> ! {
+        let inside_docker: bool = Docker::inside_docker();
+        if inside_docker {
+            if !err.is_empty() {
+               self.cli.error(err.clone());
+            }
+            std::process::exit(code);
+        }
+
+        if code != 0 {
+            self.cli.error(format!("Failed to execute '{}'", cmd));
+        }
+
+        std::process::exit(code);
+    }
+
+    pub fn unwrap_or_exit<T>(
+        &self,
+        cmd: &str,
+        result: Result<T, BError>,
+    ) -> T {
         result.unwrap_or_else(|err| {
-            self.cli.error(err.to_string());
-            std::process::exit(1);
+            self.bkry_exit(&cmd.to_string(), &err.to_string(), 1);
         })
     }
 
@@ -46,36 +70,47 @@ impl Bakery {
         let work_dir: PathBuf = self.cli.get_curr_dir();
         let home_dir: PathBuf = self.cli.get_home_dir();
         let cfg_handler: WsConfigFileHandler = WsConfigFileHandler::new(&work_dir, &home_dir);
-        let settings: WsSettingsHandler = self.unwrap_or_exit(cfg_handler.ws_settings());
         let cmd_name: &str = self.cli.get_args().subcommand_name().unwrap();
+        self.cli.info(format!("Execute '{}' task", cmd_name));
+
+        let settings: WsSettingsHandler =
+            self.unwrap_or_exit::<WsSettingsHandler>(cmd_name, cfg_handler.ws_settings());
         let cmd_result: Result<&Box<dyn BCommand>, BError> = self.cli.get_command(cmd_name);
-        let mut _res: () = self.unwrap_or_exit(settings.verify_ws());
+        let mut _res: () = self.unwrap_or_exit::<()>(cmd_name, settings.verify_ws());
 
         match cmd_result {
             Ok(command) => {
-                let config: WsBuildConfigHandler = self.unwrap_or_exit(
+                let config: WsBuildConfigHandler = self.unwrap_or_exit::<WsBuildConfigHandler>(cmd_name,
                     cfg_handler.build_config(&command.get_config_name(&self.cli), &settings),
                 );
-                let mut workspace: Workspace = self.unwrap_or_exit(Workspace::new(
+
+                self.cli.debug(format!("Current dir: {:?}", work_dir));
+                self.cli.debug(format!("Home dir: {:?}", home_dir));
+                self.cli.debug(format!("Workspace dir: {:?}", work_dir));
+                self.cli.debug(format!("Configs dir: {:?}", settings.configs_dir()));
+                self.cli.debug(format!("Includes dir: {:?}", settings.include_dir()));
+                self.cli.debug(format!("Artifacts dir: {:?}", settings.artifacts_dir()));
+
+                let mut workspace: Workspace = self.unwrap_or_exit::<Workspace>(cmd_name,Workspace::new(
                     Some(work_dir),
                     Some(settings),
                     Some(config),
                 ));
-                let res: Result<(), BError> = command.execute(&self.cli, &mut workspace);
-                res.unwrap_or_else(|err| {
-                    self.cli.error(format!(
-                        "Failed to execute '{}', with error '{}'",
-                        cmd_name,
-                        err.to_string()
-                    ));
-                    std::process::exit(1);
-                });
+
+                self.unwrap_or_exit::<()>(
+                    &cmd_name.to_string(),
+                    command.execute(&self.cli, &mut workspace),
+                );
             }
             Err(err) => {
-                self.cli.error(format!("{}", err.to_string()));
-                std::process::exit(1);
+                self.bkry_exit(&cmd_name.to_string(), &err.to_string(), 1);
             }
         }
-        std::process::exit(0);
+        
+        self.bkry_exit(
+            &cmd_name.to_string(),
+            &Default::default(),
+            0,
+        );
     }
 }
