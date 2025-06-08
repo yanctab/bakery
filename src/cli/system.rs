@@ -3,8 +3,10 @@ use crate::error::BError;
 use mockall::*;
 use std::collections::HashMap;
 use std::fmt;
+use std::fs::ReadDir;
 use std::path::PathBuf;
 use std::str;
+use std::fs;
 
 /*
 Tried using "withf" and closure when mocking the check_call for testing
@@ -42,6 +44,7 @@ pub trait System {
         init_file: &PathBuf,
         build_dir: &PathBuf,
     ) -> Result<HashMap<String, String>, BError>;
+    fn is_directory_empty(&self, path: &PathBuf) -> Result<bool, BError>;
     fn rmdir_all(&self, path: &PathBuf) -> Result<(), BError>;
     fn env(&self) -> HashMap<String, String>;
 }
@@ -148,6 +151,13 @@ impl System for BSystem {
     fn rmdir_all(&self, path: &PathBuf) -> Result<(), BError> {
         std::fs::remove_dir_all(path)?;
         Ok(())
+    }
+
+    fn is_directory_empty(&self, path: &PathBuf) -> Result<bool, BError> {
+        let mut entries: ReadDir = fs::read_dir(path)?;
+        let is_empty: bool = entries.next().is_none();
+        //println!("Entries in workspace: {}, {}", entries.count(), is_empty);
+        Ok(is_empty)
     }
 
     fn env(&self) -> HashMap<String, String> {

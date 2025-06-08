@@ -87,6 +87,10 @@ impl Cli {
         Ok(())
     }
 
+    pub fn is_ws_empty(&self, path: &PathBuf) -> Result<bool, BError> {
+        self.system.is_directory_empty(path)
+    }
+
     pub fn env(&self) -> HashMap<String, String> {
         self.system.env()
     }

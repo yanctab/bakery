@@ -17,6 +17,12 @@ pub const CTX_KEY_DISTRO: &str = "BKRY_DISTRO";
 pub const CTX_KEY_BB_BUILD_DIR: &str = "BKRY_BB_BUILD_DIR";
 pub const CTX_KEY_BB_DEPLOY_DIR: &str = "BKRY_BB_DEPLOY_DIR";
 pub const CTX_KEY_ARTIFACTS_DIR: &str = "BKRY_ARTIFACTS_DIR";
+pub const CTX_KEY_WORKSPACE_DIR: &str = "BKRY_WORKSPACE_DIR";
+pub const CTX_KEY_HOME_CFG_DIR: &str = "BKRY_HOME_CFG_DIR";
+pub const CTX_KEY_CFG_DIR: &str = "BKRY_CFG_DIR";
+pub const CTX_KEY_BIN_DIR: &str = "BKRY_BIN_DIR";
+pub const CTX_KEY_OPT_DIR: &str = "BKRY_OPT_DIR";
+pub const CTX_KEY_OPT_SCRIPTS_DIR: &str = "BKRY_OPT_SCRIPTS_DIR";
 pub const CTX_KEY_LAYERS_DIR: &str = "BKRY_LAYERS_DIR";
 pub const CTX_KEY_SCRIPTS_DIR: &str = "BKRY_SCRIPTS_DIR";
 pub const CTX_KEY_BUILDS_DIR: &str = "BKRY_BUILDS_DIR";
@@ -45,7 +51,9 @@ pub const CTX_KEY_EYECANDY: &str = "BKRY_EYECANDY";
 // are specificly defined in the build config
 pub const CTX_KEY_PRODUCT_NAME: &str = "BKRY_PRODUCT_NAME";
 pub const CTX_KEY_PROJECT_NAME: &str = "BKRY_PROJECT_NAME";
+pub const CTX_KEY_CONFIG_NAME: &str = "BKRY_CONFIG_NAME";
 pub const CTX_KEY_NAME: &str = "BKRY_NAME";
+
 // The build config should always match the BKRY_NAME used
 // by the bakery.bashrc
 pub const CTX_KEY_CONFIG: &str = "BKRY_BUILD_CONFIG";
@@ -53,11 +61,23 @@ pub const CTX_KEY_CONFIG: &str = "BKRY_BUILD_CONFIG";
 impl Config for WsContextData {}
 
 impl WsContextData {
+    fn _env_home() -> String {
+        match std::env::var_os("HOME") {
+            Some(var) => {
+                return var
+                    .into_string()
+                    .or::<String>(Ok(String::from("")))
+                    .unwrap();
+            }
+            None => {
+                return String::new();
+            }
+        }
+    }
+
     fn _mutable_key(key: &str) -> bool {
         match key {
-            CTX_KEY_ARTIFACTS_DIR
-            | CTX_KEY_SCRIPTS_DIR
-            | CTX_KEY_PLATFORM_VERSION
+            CTX_KEY_PLATFORM_VERSION
             | CTX_KEY_BUILD_ID
             | CTX_KEY_PLATFORM_RELEASE
             | CTX_KEY_BUILD_SHA
@@ -75,14 +95,23 @@ impl WsContextData {
             CTX_KEY_MACHINE
             | CTX_KEY_ARCH
             | CTX_KEY_DISTRO
+            | CTX_KEY_ARTIFACTS_DIR
+            | CTX_KEY_SCRIPTS_DIR
             | CTX_KEY_BB_BUILD_DIR
             | CTX_KEY_BB_DEPLOY_DIR
             | CTX_KEY_PRODUCT_NAME
             | CTX_KEY_PROJECT_NAME
             | CTX_KEY_NAME
+            | CTX_KEY_CONFIG_NAME
             | CTX_KEY_CONFIG
+            | CTX_KEY_WORKSPACE_DIR
             | CTX_KEY_WORK_DIR
             | CTX_KEY_LAYERS_DIR
+            | CTX_KEY_HOME_CFG_DIR
+            | CTX_KEY_BIN_DIR
+            | CTX_KEY_OPT_SCRIPTS_DIR
+            | CTX_KEY_OPT_DIR
+            | CTX_KEY_CFG_DIR
             | CTX_KEY_BUILDS_DIR => false,
             _ => false,
         }
@@ -119,14 +148,13 @@ impl WsContextData {
             CTX_KEY_PRODUCT_NAME.to_string() => "".to_string(),
             CTX_KEY_PROJECT_NAME.to_string() => "".to_string(),
             CTX_KEY_NAME.to_string() => "".to_string(),
-            CTX_KEY_CONFIG.to_string() => "".to_string(),
+            CTX_KEY_CONFIG_NAME.to_string() => "".to_string(),
             CTX_KEY_BB_BUILD_DIR.to_string() => "".to_string(),
             CTX_KEY_BB_DEPLOY_DIR.to_string() => "".to_string(),
             CTX_KEY_ARTIFACTS_DIR.to_string() => "".to_string(),
             CTX_KEY_LAYERS_DIR.to_string() => "".to_string(),
             CTX_KEY_SCRIPTS_DIR.to_string() => "".to_string(),
             CTX_KEY_BUILDS_DIR.to_string() => "".to_string(),
-            CTX_KEY_WORK_DIR.to_string() => "".to_string(),
             CTX_KEY_PLATFORM_VERSION.to_string() => "0.0.0".to_string(),
             CTX_KEY_BUILD_ID.to_string() => "0".to_string(),
             CTX_KEY_PLATFORM_RELEASE.to_string() => "".to_string(),
@@ -143,6 +171,12 @@ impl WsContextData {
             CTX_KEY_RESET.to_string() => "false".to_string(),
             CTX_KEY_CONFIG.to_string() => "NA".to_string(),
             CTX_KEY_EYECANDY.to_string() => "false".to_string(),
+            CTX_KEY_WORK_DIR.to_string() => "".to_string(),
+            CTX_KEY_HOME_CFG_DIR.to_string() => format!("{}/.bakery", Self::_env_home()),
+            CTX_KEY_CFG_DIR.to_string() => "/etc/bakery".to_string(),
+            CTX_KEY_BIN_DIR.to_string() => "/usr/bin".to_string(),
+            CTX_KEY_OPT_DIR.to_string() => "/opt/bakery".to_string(),
+            CTX_KEY_OPT_SCRIPTS_DIR.to_string() => "/opt/bakery/scripts".to_string(),
         };
         let mut ctx: Context = Context::new(&ctx_default_variables);
         ctx.update(&variables);
@@ -196,13 +230,14 @@ mod tests {
     use std::path::PathBuf;
 
     use crate::data::context::{
-        CTX_KEY_ARCH, CTX_KEY_ARCHIVER, CTX_KEY_ARTIFACTS_DIR, CTX_KEY_BB_BUILD_DIR,
-        CTX_KEY_BB_DEPLOY_DIR, CTX_KEY_BRANCH, CTX_KEY_BUILDS_DIR, CTX_KEY_BUILD_ID,
-        CTX_KEY_BUILD_SHA, CTX_KEY_BUILD_VARIANT, CTX_KEY_CONFIG, CTX_KEY_DATE,
-        CTX_KEY_DEBUG_SYMBOLS, CTX_KEY_DEVICE, CTX_KEY_DISTRO, CTX_KEY_EYECANDY, CTX_KEY_IMAGE,
-        CTX_KEY_LAYERS_DIR, CTX_KEY_MACHINE, CTX_KEY_NAME, CTX_KEY_PLATFORM_RELEASE,
-        CTX_KEY_PLATFORM_VERSION, CTX_KEY_PRODUCT_NAME, CTX_KEY_PROJECT_NAME,
-        CTX_KEY_RELEASE_BUILD, CTX_KEY_RESET, CTX_KEY_SCRIPTS_DIR, CTX_KEY_TIME, CTX_KEY_WORK_DIR,
+        CTX_KEY_ARCH, CTX_KEY_ARCHIVER, CTX_KEY_ARTIFACTS_DIR, CTX_KEY_BRANCH, CTX_KEY_BUILDS_DIR,
+        CTX_KEY_BUILD_ID, CTX_KEY_BUILD_SHA, CTX_KEY_BUILD_VARIANT, CTX_KEY_DISTRO, CTX_KEY_EYECANDY,
+        CTX_KEY_CONFIG_NAME, CTX_KEY_CONFIG, CTX_KEY_DATE, CTX_KEY_DEBUG_SYMBOLS, CTX_KEY_DEVICE, CTX_KEY_IMAGE,
+        CTX_KEY_NAME, CTX_KEY_PLATFORM_RELEASE, CTX_KEY_PLATFORM_VERSION, CTX_KEY_BB_BUILD_DIR,
+        CTX_KEY_PRODUCT_NAME, CTX_KEY_PROJECT_NAME, CTX_KEY_RELEASE_BUILD, CTX_KEY_BB_DEPLOY_DIR,
+        CTX_KEY_SCRIPTS_DIR, CTX_KEY_TIME, CTX_KEY_WORKSPACE_DIR, CTX_KEY_MACHINE, CTX_KEY_LAYERS_DIR,
+        CTX_KEY_WORK_DIR, CTX_KEY_HOME_CFG_DIR, CTX_KEY_BIN_DIR, CTX_KEY_CFG_DIR, CTX_KEY_OPT_SCRIPTS_DIR,
+        CTX_KEY_RESET, CTX_KEY_OPT_DIR
     };
     use crate::data::WsContextData;
     use crate::workspace::WsSettingsHandler;
@@ -220,6 +255,7 @@ mod tests {
         assert!(data.get_ctx_value(CTX_KEY_DISTRO).is_empty());
         assert!(data.get_ctx_value(CTX_KEY_PRODUCT_NAME).is_empty());
         assert!(data.get_ctx_value(CTX_KEY_PROJECT_NAME).is_empty());
+        assert!(data.get_ctx_value(CTX_KEY_CONFIG_NAME).is_empty());
         assert!(data.get_ctx_value(CTX_KEY_NAME).is_empty());
         assert!(data.get_ctx_value(CTX_KEY_DEVICE).is_empty());
         assert!(data.get_ctx_value(CTX_KEY_IMAGE).is_empty());
@@ -250,6 +286,12 @@ mod tests {
         assert_eq!(data.get_ctx_value(CTX_KEY_RESET), String::from("false"));
         assert_eq!(data.get_ctx_value(CTX_KEY_CONFIG), String::from("NA"));
         assert_eq!(data.get_ctx_value(CTX_KEY_EYECANDY), String::from("false"));
+        assert_eq!(data.get_ctx_value(CTX_KEY_HOME_CFG_DIR), format!("{}/.bakery", std::env::var_os("HOME").unwrap().into_string().unwrap()));
+        assert_eq!(data.get_ctx_value(CTX_KEY_CFG_DIR), String::from("/etc/bakery"));
+        assert_eq!(data.get_ctx_value(CTX_KEY_BIN_DIR), String::from("/usr/bin"));
+        assert_eq!(data.get_ctx_value(CTX_KEY_OPT_DIR), String::from("/opt/bakery"));
+        assert_eq!(data.get_ctx_value(CTX_KEY_OPT_DIR), String::from("/opt/bakery"));
+        assert_eq!(data.get_ctx_value(CTX_KEY_OPT_SCRIPTS_DIR), String::from("/opt/bakery/scripts"));
     }
 
     #[test]

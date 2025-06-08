@@ -146,7 +146,12 @@ impl WsSettingsHandler {
         Ok(())
     }
 
-    pub fn merge(&mut self, data: &mut WsSettingsHandler) {
+    /*
+     * Will be used once we have the logic in place for how to handel
+     * a workspace settings that is per build config. Not sure if it
+     * is a good idea or not so need to test the concept before deciding
+     */
+    pub fn _merge(&mut self, data: &mut WsSettingsHandler) {
         self.ws_settings.merge(&mut data.config().clone());
         self.docker = DockerImage {
             image: self.ws_settings.docker_image.clone(),

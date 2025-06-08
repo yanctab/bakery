@@ -45,6 +45,20 @@ impl BCommand for SetupCommand {
         let args_context: IndexMap<String, String> = self.setup_context(ctx);
         let mut context: WsContextData = WsContextData::new(&args_context)?;
 
+        match cli.is_ws_empty(&workspace.settings().work_dir()) {
+            Ok(is_empty) => {
+                let ws_dir: String = workspace.settings().work_dir().to_str().unwrap_or_default().to_string();
+                if !is_empty {
+                    return Err(BError::WorkspaceNotEmpty(ws_dir));
+                } else {
+                    cli.debug(format!("Workspace '{}' is empty", ws_dir));
+                }
+            }
+            Err(e) => {
+                return Err(BError::IOError(format!("Failed to check for empty workspace, {}", e.to_string())));
+            }
+        }
+
         if branch != String::from("NA") {
             context.update(&indexmap! {
                 CTX_KEY_BRANCH.to_string() => branch,
@@ -174,6 +188,10 @@ mod tests {
             .once()
             .returning(|_x| Ok(()));
         mocked_system.expect_env().returning(|| HashMap::new());
+        mocked_system
+            .expect_is_directory_empty()
+            .once()
+            .returning(|_x| Ok(true));
         let settings: WsSettingsHandler = WsSettingsHandler::from_str(work_dir, json_ws_settings)
             .expect("Failed to parse settings");
         let config: WsBuildConfigHandler =
@@ -242,6 +260,10 @@ mod tests {
             .once()
             .returning(|_x| Ok(()));
         mocked_system.expect_env().returning(|| HashMap::new());
+        mocked_system
+            .expect_is_directory_empty()
+            .once()
+            .returning(|_x| Ok(true));
         let settings: WsSettingsHandler = WsSettingsHandler::from_str(work_dir, json_ws_settings)
             .expect("Failed to parse settings");
         let config: WsBuildConfigHandler =
@@ -312,6 +334,10 @@ mod tests {
             .once()
             .returning(|_x| Ok(()));
         mocked_system.expect_env().returning(|| HashMap::new());
+        mocked_system
+            .expect_is_directory_empty()
+            .once()
+            .returning(|_x| Ok(true));
         let settings: WsSettingsHandler = WsSettingsHandler::from_str(work_dir, json_ws_settings)
             .expect("Failed to parse settings");
         let config: WsBuildConfigHandler =

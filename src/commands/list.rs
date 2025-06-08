@@ -151,6 +151,20 @@ mod tests {
     use crate::error::BError;
     use crate::workspace::{Workspace, WsBuildConfigHandler, WsSettingsHandler};
 
+    fn env_home() -> String {
+        match std::env::var_os("HOME") {
+            Some(var) => {
+                return var
+                    .into_string()
+                    .or::<String>(Ok(String::from("")))
+                    .unwrap();
+            }
+            None => {
+                return String::new();
+            }
+        }
+    }
+
     fn helper_test_list_subcommand(
         work_dir: &PathBuf,
         json_ws_settings: &str,
@@ -358,6 +372,7 @@ mod tests {
             "BKRY_DISTRO".to_string() => "test-distro".to_string(),
             "BKRY_PRODUCT_NAME".to_string() => "default".to_string(),
             "BKRY_NAME".to_string() => "default".to_string(),
+            "BKRY_CONFIG_NAME".to_string() => "default".to_string(),
             "BKRY_BUILD_CONFIG".to_string() => "default".to_string(),
             "BKRY_PRODUCT_NAME".to_string() => "default".to_string(),
             "BKRY_PROJECT_NAME".to_string() => "default".to_string(),
@@ -367,6 +382,11 @@ mod tests {
             "BKRY_LAYERS_DIR".to_string() => format!("{}", work_dir.join(PathBuf::from("layers")).display()),
             "BKRY_SCRIPTS_DIR".to_string() => format!("{}", work_dir.join(PathBuf::from("scripts")).display()),
             "BKRY_BUILDS_DIR".to_string() => format!("{}", work_dir.join(PathBuf::from("builds")).display()),
+            "BKRY_OPT_DIR".to_string() => "/opt/bakery".to_string(),
+            "BKRY_OPT_SCRIPTS_DIR".to_string() => "/opt/bakery/scripts".to_string(),
+            "BKRY_CFG_DIR".to_string() => "/etc/bakery".to_string(),
+            "BKRY_HOME_CFG_DIR".to_string() => format!("{}/.bakery", env_home()),
+            "BKRY_BIN_DIR".to_string() => "/usr/bin".to_string(),
             "BKRY_WORK_DIR".to_string() => format!("{}", work_dir.display()),
             "BKRY_PLATFORM_VERSION".to_string() => "x.y.z".to_string(),
             "BKRY_BUILD_ID".to_string() => "abcdef".to_string(),

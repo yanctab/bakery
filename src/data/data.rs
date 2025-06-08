@@ -69,6 +69,7 @@ impl WsBuildData {
             context::CTX_KEY_ARCH.to_string() => product.arch().to_string(),
             context::CTX_KEY_DISTRO.to_string() => bitbake.distro().to_string(),
             context::CTX_KEY_NAME.to_string() => product.name().to_string(),
+            context::CTX_KEY_CONFIG_NAME.to_string() => product.name().to_string(),
             context::CTX_KEY_CONFIG.to_string() => product.name().to_string(),
             context::CTX_KEY_PRODUCT_NAME.to_string() => product.product().to_string(),
             context::CTX_KEY_PROJECT_NAME.to_string() => product.project().to_string(),
