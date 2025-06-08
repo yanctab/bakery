@@ -195,6 +195,11 @@ impl Workspace {
     pub fn context(&self) -> Result<IndexMap<String, String>, BError> {
         self.config().ctx()
     }
+
+    pub fn verify_ws(&mut self) -> Result<(), BError> {
+        self.settings.verify_ws()?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]

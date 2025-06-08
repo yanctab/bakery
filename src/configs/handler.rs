@@ -8,45 +8,59 @@ const WORKSPACE_SETTINGS: &str = "workspace.json";
 
 pub struct WsConfigFileHandler {
     work_dir: PathBuf,
-    bakery_dir: PathBuf,
+    bkry_home_cfg_dir: PathBuf,
+    bkry_cfg_dir: PathBuf,
 }
 
 impl WsConfigFileHandler {
     pub fn new(work_dir: &PathBuf, home_dir: &PathBuf) -> Self {
-        let bakery_dir: PathBuf = home_dir.clone().join(".bakery");
+        let bkry_home_cfg_dir: PathBuf = home_dir.clone().join(".bakery");
+        let bkry_cfg_dir: PathBuf = PathBuf::from("/etc/bakery");
         WsConfigFileHandler {
             work_dir: work_dir.clone(),
-            bakery_dir,
+            bkry_home_cfg_dir: bkry_home_cfg_dir,
+            bkry_cfg_dir: bkry_cfg_dir,
         }
     }
 
     pub fn ws_settings(&self) -> Result<WsSettingsHandler, BError> {
-        let mut path: PathBuf = self.bakery_dir.clone().join(WORKSPACE_SETTINGS);
-
         /*
-         * The workspace settings file workspace.json can be placed under ${HOME}/.bakery/workspace.json
-         * if available that file will be used for any workspace that is used by the bakery. This can be
-         * use if for some reason a baker would like to overwrite the workspace settings that are defined
-         * in the repo for the product that is going to be baked.
+         * By default, the workspace settings file is expected in the current directory
+         * from where Bakery is executed. Typically, this file is included in the
+         * cloned repository that contains the metadata needed to build the product.
          */
+        let mut path: PathBuf = self.work_dir.clone().join(WORKSPACE_SETTINGS);
         if path.exists() {
             let settings_str: String = ConfigFileReader::new(&path).read_json()?;
             return WsSettingsHandler::from_str(&self.work_dir, &settings_str);
         }
 
         /*
-         * The default location for the workspace settings is the current directory from where bakery is executed
-         * normally this file is part of the repo that have been cloned containing the meta data to build the product
+         * The workspace settings file `workspace.json` can also be placed at
+         * ${HOME}/.bakery/workspace.json. If present, this file will override
+         * the workspace settings defined in the product repository. This allows
+         * developers to customize workspace settings locally if needed.
          */
-        path = self.work_dir.clone().join(WORKSPACE_SETTINGS);
+        path = self.bkry_home_cfg_dir.clone().join(WORKSPACE_SETTINGS);
         if path.exists() {
             let settings_str: String = ConfigFileReader::new(&path).read_json()?;
             return WsSettingsHandler::from_str(&self.work_dir, &settings_str);
         }
 
         /*
-         * Return default settings the only thing required is the version the rest
-         * be defined by the settings handler if it is not defined in the json
+         * If no workspace settings file is found under ${HOME}/.bakery/,
+         * fall back to checking /etc/bakery/ for a system-wide configuration.
+         */
+        path = self.bkry_cfg_dir.clone().join(WORKSPACE_SETTINGS);
+        if path.exists() {
+            let settings_str: String = ConfigFileReader::new(&path).read_json()?;
+            return WsSettingsHandler::from_str(&self.work_dir, &settings_str);
+        }
+
+        /*
+         * Return default settings. Only the version is required here;
+         * all other values can be provided by the settings handler if
+         * they are not defined in the JSON file.
          */
         let default_settings: &str = r#"
         {
@@ -60,6 +74,25 @@ impl WsConfigFileHandler {
         let cfg_product_json: String = config.build_data().product().to_string();
         let cfg_header_json: String = format!("{},{}", cfg_product_json, cfg_bitbake_json);
         cfg_header_json.clone()
+    }
+
+    pub fn verify_ws(&self) -> Result<(), BError> {
+        /*
+         * The search order for the workspace settings is:
+         * 
+         * 1. Current working directory
+         * 2. ~/.bakery/
+         * 3. /etc/bakery/
+         *
+         * If none of these contain 'workspace.json', return an invalid workspace error.
+         */
+        if !self.work_dir.clone().join(WORKSPACE_SETTINGS).exists() &&
+            !self.bkry_home_cfg_dir.clone().join(WORKSPACE_SETTINGS).exists() &&
+            !self.bkry_cfg_dir.clone().join(WORKSPACE_SETTINGS).exists() {
+            return Err(BError::InvalidWorkspaceError());
+        }
+
+        Ok(())
     }
 
     pub fn setup_build_config(
@@ -197,8 +230,7 @@ mod tests {
     }
 
     /*
-     * Test that the workspace settings file in the home bakery config dir is used instead
-     * of the one in the root of the workspace/work dir
+     * Make sure that 
      */
     #[test]
     fn test_cfg_handler_settings_home_dir() {
@@ -211,7 +243,7 @@ mod tests {
         {
             "version": "6",
             "workspace": {
-                "configsdir": "work_dir"
+                "configsdir": "config1_dir"
             }
         }"#;
         write_json_conf(&work_dir.clone().join("workspace.json"), ws_settings_1);
@@ -219,7 +251,7 @@ mod tests {
         {
             "version": "6",
             "workspace": {
-                "configsdir": "home_dir"
+                "configsdir": "config2_dir"
             }
         }"#;
         write_json_conf(
@@ -230,7 +262,7 @@ mod tests {
         let settings: WsSettingsHandler = cfg_handler
             .ws_settings()
             .expect("Failed parse workspace settings");
-        assert_eq!(settings.configs_dir(), work_dir.clone().join("home_dir"));
+        assert_eq!(settings.configs_dir(), work_dir.clone().join("config1_dir"));
     }
 
     /*

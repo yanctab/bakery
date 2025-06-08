@@ -41,12 +41,9 @@ impl Bakery {
         cmd: &String,
         err: &String,
         code: i32) -> ! {
-        let inside_docker: bool = Docker::inside_docker();
-        if inside_docker {
-            if !err.is_empty() {
-               self.cli.error(err.clone());
-            }
-            std::process::exit(code);
+
+        if !err.is_empty() {
+            self.cli.error(err.clone());
         }
 
         if code != 0 {
@@ -71,12 +68,16 @@ impl Bakery {
         let home_dir: PathBuf = self.cli.get_home_dir();
         let cfg_handler: WsConfigFileHandler = WsConfigFileHandler::new(&work_dir, &home_dir);
         let cmd_name: &str = self.cli.get_args().subcommand_name().unwrap();
-        self.cli.info(format!("Execute '{}' task", cmd_name));
+        /*
+         * Verify that a 'workspace.json' file can be found in one of the configuration directories:
+         * the current directory (.), the user config directory (~/.bakery), or the system config directory (/etc/bakery).
+         * If no 'workspace.json' is found in any of these locations, exit with an "invalid workspace" error.
+         */
+        let mut _res: () = self.unwrap_or_exit::<()>(cmd_name, cfg_handler.verify_ws());
 
         let settings: WsSettingsHandler =
             self.unwrap_or_exit::<WsSettingsHandler>(cmd_name, cfg_handler.ws_settings());
         let cmd_result: Result<&Box<dyn BCommand>, BError> = self.cli.get_command(cmd_name);
-        let mut _res: () = self.unwrap_or_exit::<()>(cmd_name, settings.verify_ws());
 
         match cmd_result {
             Ok(command) => {
@@ -97,6 +98,18 @@ impl Bakery {
                     Some(config),
                 ));
 
+                /*
+                 * Verify that the directories defined in 'workspace.json' actually exist.
+                 * These may include paths like 'configs', 'scripts', etc.
+                 */
+                _res = self.unwrap_or_exit::<()>(cmd_name, workspace.verify_ws());
+
+                self.unwrap_or_exit::<()>(
+                    &cmd_name.to_string(),
+                    workspace.verify_ws()
+                );
+        
+                self.cli.debug(format!("Executing '{}' cmd", cmd_name));
                 self.unwrap_or_exit::<()>(
                     &cmd_name.to_string(),
                     command.execute(&self.cli, &mut workspace),

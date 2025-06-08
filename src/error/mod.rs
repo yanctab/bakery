@@ -17,6 +17,8 @@ pub enum BError {
     JsonParseError(String),
     #[error("The build config version '{0}' is not compatible with current bakery version. Update config to match the format of version '6'")]
     InvalidBuildConfigError(String),
+    #[error("Invalid bakery workspace: 'workspace.json' file not found. Expected in current directory, ~/.bakery/, or /etc/bakery/")]
+    InvalidWorkspaceError(),
     #[error("{0}")]
     IOError(String),
     #[error("{0}")]

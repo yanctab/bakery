@@ -34,11 +34,12 @@ impl WsSettingsHandler {
         }
     }
 
-    pub fn verify_ws_dir(&self, dir: &Path) -> Result<(), BError> {
+    pub fn verify_ws_dir(&self, ws_dir: &str, dir: &Path) -> Result<(), BError> {
         if !dir.is_dir() || !dir.exists() {
             return Err(BError::WsError(format!(
-                "Workspace directory '{}' dosen't exists",
-                dir.display()
+                "Invalid workspace.json: the directory specified for '{}' does not exist: {:?}",
+                ws_dir,
+                dir
             )));
         }
         return Ok(());
@@ -48,11 +49,11 @@ impl WsSettingsHandler {
         let ws_config: PathBuf = self.work_dir().join("workspace.json");
         if !ws_config.exists() || !ws_config.is_file() {
             return Err(BError::WsError(format!(
-                "Not a bakery workspace, file 'workspace.json' missing"
+                "Invalid bakery workspace: 'workspace.json' file not found!"
             )));
         }
-        self.verify_ws_dir(self.configs_dir().as_path())?;
-        self.verify_ws_dir(self.scripts_dir().as_path())?;
+        self.verify_ws_dir("configsdir", self.configs_dir().as_path())?;
+        self.verify_ws_dir("scriptsdir", self.scripts_dir().as_path())?;
         Ok(())
     }
 
