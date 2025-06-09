@@ -170,7 +170,7 @@ impl WsConfigFileHandler {
         }
 
         return Err(BError::ValueError(format!(
-            "Build config '{}' missing!",
+            "No such build config: '{}' does not exist!",
             build_config.clone().display()
         )));
     }
@@ -182,6 +182,7 @@ mod tests {
     use std::io::Write;
     use std::path::PathBuf;
     use tempdir::TempDir;
+    use indexmap::IndexMap;
 
     use crate::configs::WsConfigFileHandler;
     use crate::error::BError;
@@ -209,10 +210,21 @@ mod tests {
     #[test]
     fn test_cfg_handler_settings_default() {
         let temp_dir: TempDir =
-            TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
+            TempDir::new("deej-test-dir").expect("Failed to create temp directory");
         let work_dir: PathBuf = PathBuf::from(temp_dir.path()).join("workspace");
         let home_dir: PathBuf = PathBuf::from(temp_dir.path()).join("home");
         Helper::setup_test_ws_default_dirs(&work_dir);
+        let settings_str: &str = r#"
+        {
+            "version": "5"
+        }"#;
+        let settings_path: PathBuf = PathBuf::from(format!(
+            "{}/workspace.json",
+            PathBuf::from(work_dir.clone()).display()
+        ));
+        let mut configs: IndexMap<PathBuf, String> = IndexMap::new();
+        configs.insert(settings_path, settings_str.to_string());
+        Helper::setup_test_build_configs_files(&configs);
         let cfg_handler: WsConfigFileHandler = WsConfigFileHandler::new(&work_dir, &home_dir);
         let settings: WsSettingsHandler = cfg_handler
             .ws_settings()
@@ -313,7 +325,7 @@ mod tests {
             Err(e) => {
                 assert_eq!(
                     e.to_string(),
-                    String::from("Build config 'invalid.json' missing!")
+                    String::from("No such build config: 'invalid.json' does not exist!")
                 );
             }
         }

@@ -10,23 +10,14 @@ pub struct WsContextData {
     context: Context,
 }
 
-// Built in context variables
+/* 
+ * Built in context variables
+ */
+
+ /* BKRY Built in variables controlled by the build config or adjusted using one of the options */
 pub const CTX_KEY_MACHINE: &str = "BKRY_MACHINE";
 pub const CTX_KEY_ARCH: &str = "BKRY_ARCH";
 pub const CTX_KEY_DISTRO: &str = "BKRY_DISTRO";
-pub const CTX_KEY_BB_BUILD_DIR: &str = "BKRY_BB_BUILD_DIR";
-pub const CTX_KEY_BB_DEPLOY_DIR: &str = "BKRY_BB_DEPLOY_DIR";
-pub const CTX_KEY_ARTIFACTS_DIR: &str = "BKRY_ARTIFACTS_DIR";
-pub const CTX_KEY_WORKSPACE_DIR: &str = "BKRY_WORKSPACE_DIR";
-pub const CTX_KEY_HOME_CFG_DIR: &str = "BKRY_HOME_CFG_DIR";
-pub const CTX_KEY_CFG_DIR: &str = "BKRY_CFG_DIR";
-pub const CTX_KEY_BIN_DIR: &str = "BKRY_BIN_DIR";
-pub const CTX_KEY_OPT_DIR: &str = "BKRY_OPT_DIR";
-pub const CTX_KEY_OPT_SCRIPTS_DIR: &str = "BKRY_OPT_SCRIPTS_DIR";
-pub const CTX_KEY_LAYERS_DIR: &str = "BKRY_LAYERS_DIR";
-pub const CTX_KEY_SCRIPTS_DIR: &str = "BKRY_SCRIPTS_DIR";
-pub const CTX_KEY_BUILDS_DIR: &str = "BKRY_BUILDS_DIR";
-pub const CTX_KEY_WORK_DIR: &str = "BKRY_WORK_DIR";
 pub const CTX_KEY_PLATFORM_VERSION: &str = "BKRY_PLATFORM_VERSION";
 pub const CTX_KEY_BUILD_ID: &str = "BKRY_BUILD_ID";
 pub const CTX_KEY_PLATFORM_RELEASE: &str = "BKRY_PLATFORM_RELEASE";
@@ -42,21 +33,35 @@ pub const CTX_KEY_TIME: &str = "BKRY_TIME";
 pub const CTX_KEY_BRANCH: &str = "BKRY_BRANCH";
 pub const CTX_KEY_RESET: &str = "BKRY_RESET";
 pub const CTX_KEY_EYECANDY: &str = "BKRY_EYECANDY";
+/*
+ * TODO: we should clean this up in some way it should
+ * not have to be this many context variables for
+ * almost the same thing.
+ */
 
-// TODO: we should clean this up in some way it should
-// not have to be this many context variables for
-// almost the same thing.
-
-// By default all of these are the same unless they
-// are specificly defined in the build config
+/* By default all of these are the same unless they are specificly defined in the build config */
 pub const CTX_KEY_PRODUCT_NAME: &str = "BKRY_PRODUCT_NAME";
 pub const CTX_KEY_PROJECT_NAME: &str = "BKRY_PROJECT_NAME";
 pub const CTX_KEY_CONFIG_NAME: &str = "BKRY_CONFIG_NAME";
 pub const CTX_KEY_NAME: &str = "BKRY_NAME";
 
-// The build config should always match the BKRY_NAME used
-// by the bakery.bashrc
+/* The build config should always match the BKRY_NAME used by the bakery.bashrc */
 pub const CTX_KEY_CONFIG: &str = "BKRY_BUILD_CONFIG";
+
+/* BKRY directories either static or set by workspace.json */
+pub const CTX_KEY_BB_BUILD_DIR: &str = "BKRY_BB_BUILD_DIR";
+pub const CTX_KEY_BB_DEPLOY_DIR: &str = "BKRY_BB_DEPLOY_DIR";
+pub const CTX_KEY_ARTIFACTS_DIR: &str = "BKRY_ARTIFACTS_DIR";
+pub const CTX_KEY_WORKSPACE_DIR: &str = "BKRY_WORKSPACE_DIR";
+pub const CTX_KEY_HOME_CFG_DIR: &str = "BKRY_HOME_CFG_DIR";
+pub const CTX_KEY_CFG_DIR: &str = "BKRY_CFG_DIR";
+pub const CTX_KEY_BIN_DIR: &str = "BKRY_BIN_DIR";
+pub const CTX_KEY_OPT_DIR: &str = "BKRY_OPT_DIR";
+pub const CTX_KEY_OPT_SCRIPTS_DIR: &str = "BKRY_OPT_SCRIPTS_DIR";
+pub const CTX_KEY_LAYERS_DIR: &str = "BKRY_LAYERS_DIR";
+pub const CTX_KEY_SCRIPTS_DIR: &str = "BKRY_SCRIPTS_DIR";
+pub const CTX_KEY_BUILDS_DIR: &str = "BKRY_BUILDS_DIR";
+pub const CTX_KEY_WORK_DIR: &str = "BKRY_WORK_DIR";
 
 impl Config for WsContextData {}
 
@@ -172,6 +177,7 @@ impl WsContextData {
             CTX_KEY_CONFIG.to_string() => "NA".to_string(),
             CTX_KEY_EYECANDY.to_string() => "false".to_string(),
             CTX_KEY_WORK_DIR.to_string() => "".to_string(),
+            CTX_KEY_WORKSPACE_DIR.to_string() => "".to_string(),
             CTX_KEY_HOME_CFG_DIR.to_string() => format!("{}/.bakery", Self::_env_home()),
             CTX_KEY_CFG_DIR.to_string() => "/etc/bakery".to_string(),
             CTX_KEY_BIN_DIR.to_string() => "/usr/bin".to_string(),
@@ -203,6 +209,7 @@ impl WsContextData {
              */
             if !value.is_empty() {
                 if value.to_lowercase() != "na" || self.context.value(key).is_empty() {
+                    //println!("Update: {}={}", key, value);
                     v.insert(key.to_owned(), value.to_owned());
                 }
             }
@@ -213,6 +220,10 @@ impl WsContextData {
 
     pub fn update_ctx(&mut self, context: &Context) {
         self.update(context.variables());
+    }
+
+    pub fn expand_ctx(&mut self) -> Result<(), BError> {
+        self.context.expand()
     }
 
     pub fn get_ctx_path(&self, key: &str) -> PathBuf {
@@ -271,6 +282,7 @@ mod tests {
         );
         assert_eq!(data.get_ctx_value(CTX_KEY_BUILD_ID), String::from("0"));
         assert_eq!(data.get_ctx_path(CTX_KEY_WORK_DIR), PathBuf::from(""));
+        assert_eq!(data.get_ctx_path(CTX_KEY_WORKSPACE_DIR), PathBuf::from(""));
         assert_eq!(
             data.get_ctx_value(CTX_KEY_BUILD_VARIANT),
             String::from("dev")
@@ -321,6 +333,7 @@ mod tests {
             CTX_KEY_BUILD_VARIANT.to_string() => "test-variant".to_string(),
             CTX_KEY_PRODUCT_NAME.to_string() => "test".to_string(),
             CTX_KEY_WORK_DIR.to_string() => settings.work_dir().to_string_lossy().to_string(),
+            CTX_KEY_WORKSPACE_DIR.to_string() => settings.workspace_dir().to_string_lossy().to_string(),
         };
         data.update(&ctx_built_in_variables);
         assert_eq!(data.get_ctx_value(CTX_KEY_MACHINE), "test-machine");
@@ -332,6 +345,7 @@ mod tests {
         assert_eq!(data.get_ctx_value("KEY2"), "value2");
         assert_eq!(data.get_ctx_value("KEY3"), "value3");
         assert_eq!(data.get_ctx_path(CTX_KEY_WORK_DIR), settings.work_dir());
+        assert_eq!(data.get_ctx_path(CTX_KEY_WORKSPACE_DIR), settings.workspace_dir());
     }
 
     #[test]
@@ -354,5 +368,22 @@ mod tests {
         assert_eq!(data.get_ctx_value(CTX_KEY_BRANCH), "branch");
         assert_eq!(data.get_ctx_value(CTX_KEY_RESET), "true");
         assert_eq!(data.get_ctx_value(CTX_KEY_EYECANDY), "true");
+    }
+
+    #[test]
+    fn test_ws_context_chain() {
+        let json_build_config = r#"
+        {
+            "version": "6",
+            "context": [
+                "BKRY_IMAGE=image",
+                "TEST_CTX_CHAIN=test/$#[BKRY_IMAGE]"
+            ]
+        }"#;
+        let mut data: WsContextData =
+            WsContextData::from_str(json_build_config).expect("Failed to parse context data");
+        data.expand_ctx().expect("expand ctx failed with error");
+        assert_eq!(data.get_ctx_value(CTX_KEY_IMAGE), "image");
+        assert_eq!(data.get_ctx_value("TEST_CTX_CHAIN"), "test/image");
     }
 }

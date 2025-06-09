@@ -10,7 +10,6 @@ use crate::fs::ConfigFileReader;
 use crate::workspace::{WsBuildConfigHandler, WsSettingsHandler};
 
 pub struct Workspace {
-    settings: WsSettingsHandler,
     config: WsBuildConfigHandler,
     configs: IndexMap<PathBuf, String>,
 }
@@ -154,14 +153,13 @@ impl Workspace {
             Self::setup_list_of_available_configs(&settings, &config)?;
 
         Ok(Workspace {
-            settings,
             config,
             configs,
         })
     }
 
     pub fn settings(&self) -> &WsSettingsHandler {
-        &self.settings
+        &self.config.build_data().settings()
     }
 
     pub fn config(&self) -> &WsBuildConfigHandler {
@@ -178,7 +176,7 @@ impl Workspace {
     // of build configs supported by the workspace
     pub fn valid_config(&self, config: &str) -> bool {
         self.build_configs()
-            .contains_key(&self.settings.configs_dir().join(format!("{}.json", config)))
+            .contains_key(&self.config().build_data().settings().configs_dir().join(format!("{}.json", config)))
     }
 
     pub fn update_ctx(&mut self, context: &WsContextData) -> Result<(), BError> {
@@ -197,7 +195,7 @@ impl Workspace {
     }
 
     pub fn verify_ws(&mut self) -> Result<(), BError> {
-        self.settings.verify_ws()?;
+        self.config.build_data().settings().verify_ws()?;
         Ok(())
     }
 }
@@ -361,6 +359,37 @@ mod tests {
         assert_eq!(
             ws.settings().supported_builds(),
             &vec!["default".to_string()]
+        );
+    }
+
+    #[test]
+    fn test_workspace_context_settings() {
+        let test_work_dir: &str = "/test_work_dir";
+        let json_settings: &str = r#"
+        {
+            "version": "6",
+            "builds": {
+                "supported": [
+                    "default"
+                ]
+            },
+            "workspace": {
+                "artifactsdir": "artifacts/$#[BKRY_NAME]"
+            }
+        }"#;
+        let json_build_config: &str = r#"
+        {
+            "version": "6",
+            "name": "test-name",
+            "description": "Test Description",
+            "arch": "test-arch",
+            "bb": {}
+        }"#;
+        let mut ws: Workspace = Helper::setup_ws(test_work_dir, json_settings, json_build_config);
+        ws.expand_ctx().expect("Failed to expand the context");
+        assert_eq!(
+            ws.settings().artifacts_dir(),
+            PathBuf::from("/test_work_dir/artifacts/test-name")
         );
     }
 

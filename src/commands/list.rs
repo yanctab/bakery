@@ -336,6 +336,9 @@ mod tests {
                 "supported": [
                     "default"
                 ]
+            },
+            "workspace": {
+                "artifactsdir": "artifacts/$#[BKRY_NAME]"
             }
         }"#;
         let json_build_config: &str = r#"
@@ -366,7 +369,7 @@ mod tests {
             .with(mockall::predicate::eq("Context variables:".to_string()))
             .once()
             .returning(|_x| ());
-        let ctx_variables: IndexMap<String, String> = indexmap! {
+        let ref_ctx_variables: IndexMap<String, String> = indexmap! {
             "BKRY_MACHINE".to_string() => "test-machine".to_string(),
             "BKRY_ARCH".to_string() => "test-arch".to_string(),
             "BKRY_DISTRO".to_string() => "test-distro".to_string(),
@@ -378,7 +381,7 @@ mod tests {
             "BKRY_PROJECT_NAME".to_string() => "default".to_string(),
             "BKRY_BB_BUILD_DIR".to_string() => format!("{}", work_dir.join(PathBuf::from("builds/default")).display()),
             "BKRY_BB_DEPLOY_DIR".to_string() => format!("{}", work_dir.join(PathBuf::from("builds/default/tmp/deploy/images")).display()),
-            "BKRY_ARTIFACTS_DIR".to_string() => format!("{}", work_dir.join(PathBuf::from("artifacts")).display()),
+            "BKRY_ARTIFACTS_DIR".to_string() => format!("{}", work_dir.join(PathBuf::from("artifacts/default")).display()),
             "BKRY_LAYERS_DIR".to_string() => format!("{}", work_dir.join(PathBuf::from("layers")).display()),
             "BKRY_SCRIPTS_DIR".to_string() => format!("{}", work_dir.join(PathBuf::from("scripts")).display()),
             "BKRY_BUILDS_DIR".to_string() => format!("{}", work_dir.join(PathBuf::from("builds")).display()),
@@ -388,6 +391,7 @@ mod tests {
             "BKRY_HOME_CFG_DIR".to_string() => format!("{}/.bakery", env_home()),
             "BKRY_BIN_DIR".to_string() => "/usr/bin".to_string(),
             "BKRY_WORK_DIR".to_string() => format!("{}", work_dir.display()),
+            "BKRY_WORKSPACE_DIR".to_string() => format!("{}", work_dir.display()),
             "BKRY_PLATFORM_VERSION".to_string() => "x.y.z".to_string(),
             "BKRY_BUILD_ID".to_string() => "abcdef".to_string(),
             "BKRY_PLATFORM_RELEASE".to_string() => "".to_string(),
@@ -404,7 +408,7 @@ mod tests {
             "BKRY_RESET".to_string() => "false".to_string(),
             "BKRY_EYECANDY".to_string() => "false".to_string(),
         };
-        ctx_variables.iter().for_each(|(key, value)| {
+        ref_ctx_variables.iter().for_each(|(key, value)| {
             mocked_logger
                 .expect_stdout()
                 .with(mockall::predicate::eq(format!("{}={}", key, value)))

@@ -78,6 +78,7 @@ impl WsBuildData {
             context::CTX_KEY_SCRIPTS_DIR.to_string() => settings.scripts_dir().to_string_lossy().to_string(),
             context::CTX_KEY_BUILDS_DIR.to_string() => settings.builds_dir().to_string_lossy().to_string(),
             context::CTX_KEY_WORK_DIR.to_string() => settings.work_dir().to_string_lossy().to_string(),
+            context::CTX_KEY_WORKSPACE_DIR.to_string() => settings.workspace_dir().to_string_lossy().to_string(),
             context::CTX_KEY_DATE.to_string() => chrono::offset::Local::now().format("%Y-%m-%d").to_string(),
             context::CTX_KEY_TIME.to_string() => chrono::offset::Local::now().format("%H:%M").to_string(),
         };
@@ -237,6 +238,13 @@ impl WsBuildData {
         self.config.expand_ctx(self.context.ctx())?;
         self.product.expand_ctx(self.context.ctx())?;
         self.settings.expand_ctx(self.context.ctx())?;
+        /*
+         * Once that we have expanded the settings we need
+         * to also expand the context because the context
+         * might be using some of the built-in context variables
+         * comming from the settings in workspace.json
+         */
+        self.context.expand_ctx()?;
         self.bitbake.expand_ctx(self.context.ctx())?;
         Ok(())
     }

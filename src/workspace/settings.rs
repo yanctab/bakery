@@ -52,12 +52,20 @@ impl WsSettingsHandler {
                 "Invalid bakery workspace: 'workspace.json' file not found!"
             )));
         }
+        /*
+         * Start by verifying the existence of the scripts and configs directories.
+         * This can be extended to include additional directories if needed.
+         */
         self.verify_ws_dir("configsdir", self.configs_dir().as_path())?;
         self.verify_ws_dir("scriptsdir", self.scripts_dir().as_path())?;
         Ok(())
     }
 
     pub fn work_dir(&self) -> PathBuf {
+        self.work_dir.clone()
+    }
+
+    pub fn workspace_dir(&self) -> PathBuf {
         self.work_dir.clone()
     }
 
@@ -143,6 +151,16 @@ impl WsSettingsHandler {
 
     pub fn expand_ctx(&mut self, ctx: &Context) -> Result<(), BError> {
         self.ws_settings.expand_ctx(ctx)?;
+        self.docker = DockerImage {
+            image: self.ws_settings.docker_image.clone(),
+            tag: self.ws_settings.docker_tag.clone(),
+            registry: self.ws_settings.docker_registry.clone(),
+        };
+        /*
+         * We should expand the docker image but we will have to
+         * refactor it so lets leave it for now
+         */
+        //self.docker_image().expand_ctx(ctx)?;
         Ok(())
     }
 
@@ -164,7 +182,9 @@ impl WsSettingsHandler {
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
+    use indexmap::{indexmap, IndexMap};
 
+    use crate::configs::Context;
     use crate::executers::DockerImage;
     use crate::helper::Helper;
     use crate::workspace::WsSettingsHandler;
@@ -200,15 +220,15 @@ mod tests {
         {
             "version": "6",
             "workspace": {
-              "configsdir": "configs_test",
-              "includedir": "include_test",
-              "artifactsdir": "artifacts_test",
-              "layersdir": "layers_test",
-              "buildsdir": "builds_test",
-              "artifactsdir": "artifacts_test",
-              "scriptsdir": "scripts_test",
-              "dockerdir": "docker_test",
-              "cachedir": "cache_test"
+                "configsdir": "configs_test",
+                "includedir": "include_test",
+                "artifactsdir": "artifacts_test",
+                "layersdir": "layers_test",
+                "buildsdir": "builds_test",
+                "artifactsdir": "artifacts_test",
+                "scriptsdir": "scripts_test",
+                "dockerdir": "docker_test",
+                "cachedir": "cache_test"
             }
         }"#;
         let work_dir: PathBuf = PathBuf::from("/workspace");
@@ -251,7 +271,7 @@ mod tests {
         {
             "version": "6",
             "workspace": {
-              "layersdir": ""
+                "layersdir": ""
             }
         }"#;
         let work_dir: PathBuf = PathBuf::from("/workspace");
@@ -378,5 +398,46 @@ mod tests {
             settings.supported_builds(),
             &vec!["build1".to_string(), "build2".to_string()]
         );
+    }
+
+    #[test]
+    fn test_settings_context() {
+        let json_test_str = r#"
+        {
+            "version": "5",
+            "workspace": {
+                "configsdir": "configs_$#[VAR1]",
+                "includedir": "include_test",
+                "artifactsdir": "artifacts_$#[VAR2]",
+                "buildsdir": "builds_test",
+                "scriptsdir": "scripts_test2",
+                "dockerdir": "docker_test",
+                "cachedir": "cache_test2"
+            },
+            "docker": {
+                "registry": "test-registry-$#[VAR3]",
+                "image": "test-image-$#[VAR4]",
+                "tag": "test2",
+                "args": [
+                    "--network=host"
+                ]
+            }
+        }"#;
+        let work_dir: PathBuf = PathBuf::from("/workspace");
+        let mut settings: WsSettingsHandler =
+            WsSettingsHandler::new(work_dir.clone(), Helper::setup_ws_settings(json_test_str));
+        let variables: IndexMap<String, String> = indexmap! {
+            "VAR1".to_string() => "var1".to_string(),
+            "VAR2".to_string() => "var2".to_string(),
+            "VAR3".to_string() => "var3".to_string(),
+            "VAR4".to_string() => "var4".to_string()
+        };
+        let ctx: Context = Context::new(&variables);
+        settings.expand_ctx(&ctx).unwrap();
+        assert_eq!(settings.configs_dir(), work_dir.join("configs_var1"));
+        assert_eq!(settings.include_dir(), work_dir.join("include_test"));
+        assert_eq!(settings.artifacts_dir(), work_dir.join("artifacts_var2"));
+        let docker_image: DockerImage = settings.docker_image();
+        assert_eq!(format!("{}", docker_image), "test-registry-var3/test-image-var4:test2");
     }
 }

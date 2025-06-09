@@ -1,4 +1,4 @@
-use indexmap::IndexMap;
+use indexmap::{IndexMap, indexmap};
 use regex::Regex;
 use std::path::PathBuf;
 
@@ -65,6 +65,16 @@ impl Context {
     pub fn expand_path(&self, p: &PathBuf) -> Result<PathBuf, BError> {
         let p_str: String = self.expand_str(p.to_str().unwrap())?;
         Ok(PathBuf::from(p_str))
+    }
+
+    pub fn expand(&mut self) -> Result<(), BError> {
+        let mut expanded_variables: IndexMap<String, String> = indexmap! {};
+        for (key, value) in self.variables() {
+            let expanded_value: String = self.expand_str(value).unwrap_or_default();
+            expanded_variables.insert(key.clone(), expanded_value);
+        }
+        self.update(&expanded_variables);
+        Ok(())
     }
 
     pub fn value(&self, key: &str) -> String {
