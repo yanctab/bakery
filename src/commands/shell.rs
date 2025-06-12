@@ -50,6 +50,7 @@ impl BCommand for ShellCommand {
         let docker_pull: bool = self.get_arg_flag(cli, "docker_pull", BCOMMAND)?;
         let eyecandy: bool = self.get_arg_flag(cli, "eyecandy", BCOMMAND)?;
         let interactive_str: String = self.get_arg_str(cli, "interactive", BCOMMAND)?;
+        let mut res: Result<(), BError> = Ok(());
         let mut interactive: bool = false;
 
         if interactive_str == "true" {
@@ -100,10 +101,25 @@ impl BCommand for ShellCommand {
 
                 cmd_line.append(&mut vec![String::from("-r"), format!("\"{}\"", cmd)]);
 
-                return self.bootstrap(&cmd_line, cli, workspace, &volumes, interactive);
+                res = self.bootstrap(&cmd_line, cli, workspace, &volumes, interactive);
+                if let Err(err) = res {
+                    cli.debug(format!("bootstrap error: {}", err.to_string()));
+                }
+
+                return Ok(());
             }
 
-            return self.bootstrap(&cli.get_cmd_line(), cli, workspace, &volumes, interactive);
+            /*
+             * We ignore errors from the shell itself, assuming they originate from
+             * commands executed within the shell. There may be a smarter approach,
+             * but this is sufficient for now.
+             */
+            res = self.bootstrap(&cli.get_cmd_line(), cli, workspace, &volumes, interactive);
+            if let Err(err) = res {
+                cli.debug(format!("bootstrap error: {}", err.to_string()));
+            }
+
+            return Ok(());
         }
 
         let mut context: WsContextData = WsContextData::new(&indexmap! {})?;
@@ -127,7 +143,17 @@ impl BCommand for ShellCommand {
         workspace.expand_ctx()?;
 
         if cmd.is_empty() {
-            return self.run_bitbake_shell(cli, workspace, &self.setup_env(env), &docker);
+            /*
+             * We ignore errors from the shell itself, assuming they originate from
+             * commands executed within the shell. There may be a smarter approach,
+             * but this is sufficient for now.
+             */
+            res = self.run_bitbake_shell(cli, workspace, &self.setup_env(env), &docker);
+            if let Err(err) = res {
+                cli.debug(format!("shell error: {}", err.to_string()));
+            }
+
+            return Ok(());
         }
 
         self.run_cmd(
