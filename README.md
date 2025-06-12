@@ -22,21 +22,7 @@ user@node:/dir$ wget https://github.com/yanctab/bakery/releases/download/v${BAKE
 user@node:/dir$ sudo dpkg -i bakery-x86_64-musl-v${BAKERY_VERSION}.deb
 ```
 
-Because bakery is written in Rust bakery is a single binary depending only on libc. It will be installed under /usr/bin/bakery.
-
-## Build Source Code
-
-Please see [build source code](documentation/build-bakery.md) for information on how to build bakery.
-
-## Docker
-
-By default, Bakery utilizes Docker. Refer to the [Docker setup guide](documentation/docker.md) for detailed instructions on setting up Docker on your host system. Additionally, if you wish to run Bakery without Docker, please consult the guide on [disabling Docker](documentation/workspace-config.md#disabled) for detailed instructions. To test out that docker works run
-
-
-```bash
-user@node:/dir$ BAKERY_VERSION=x.y.z
-user@node:/dir$ docker run -it ghcr.io/yanctab/bakery/bakery-workspace:${BAKERY_VERSION} /bin/bash
-```
+Because bakery is written in Rust and libc musl bakery is a single binary. It will be installed under /usr/bin.
 
 ## Usage
 
@@ -89,6 +75,28 @@ To start a build run
 ```
 
 For more information on how to use the shell and any sub-command please refere to [shell](documentation/sub-commands.md#shell).
+
+## Eyecandy
+
+Powered by [starship](https://starship.rs/) requires that your GUI terminal has setup [nerdfonts](https://www.nerdfonts.com/). To enable run
+
+```bash
+bakery shell -c <build config> --eyecandy
+```
+
+## Build Source Code
+
+Please see [build source code](documentation/build-bakery.md) for information on how to build bakery.
+
+## Docker
+
+By default, Bakery utilizes Docker. Refer to the [Docker setup guide](documentation/docker.md) for detailed instructions on setting up Docker on your host system. Additionally, if you wish to run Bakery without Docker, please consult the guide on [disabling Docker](documentation/workspace-config.md#disabled) for detailed instructions. To test out that docker works run
+
+
+```bash
+user@node:/dir$ BAKERY_VERSION=x.y.z
+user@node:/dir$ docker run -it ghcr.io/yanctab/bakery/bakery-workspace:${BAKERY_VERSION} /bin/bash
+```
 
 ## Template Project
 
