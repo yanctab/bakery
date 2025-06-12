@@ -10,11 +10,11 @@ pub struct WsContextData {
     context: Context,
 }
 
-/* 
+/*
  * Built in context variables
  */
 
- /* BKRY Built in variables controlled by the build config or adjusted using one of the options */
+/* BKRY Built in variables controlled by the build config or adjusted using one of the options */
 pub const CTX_KEY_MACHINE: &str = "BKRY_MACHINE";
 pub const CTX_KEY_ARCH: &str = "BKRY_ARCH";
 pub const CTX_KEY_DISTRO: &str = "BKRY_DISTRO";
@@ -241,14 +241,15 @@ mod tests {
     use std::path::PathBuf;
 
     use crate::data::context::{
-        CTX_KEY_ARCH, CTX_KEY_ARCHIVER, CTX_KEY_ARTIFACTS_DIR, CTX_KEY_BRANCH, CTX_KEY_BUILDS_DIR,
-        CTX_KEY_BUILD_ID, CTX_KEY_BUILD_SHA, CTX_KEY_BUILD_VARIANT, CTX_KEY_DISTRO, CTX_KEY_EYECANDY,
-        CTX_KEY_CONFIG_NAME, CTX_KEY_CONFIG, CTX_KEY_DATE, CTX_KEY_DEBUG_SYMBOLS, CTX_KEY_DEVICE, CTX_KEY_IMAGE,
-        CTX_KEY_NAME, CTX_KEY_PLATFORM_RELEASE, CTX_KEY_PLATFORM_VERSION, CTX_KEY_BB_BUILD_DIR,
-        CTX_KEY_PRODUCT_NAME, CTX_KEY_PROJECT_NAME, CTX_KEY_RELEASE_BUILD, CTX_KEY_BB_DEPLOY_DIR,
-        CTX_KEY_SCRIPTS_DIR, CTX_KEY_TIME, CTX_KEY_WORKSPACE_DIR, CTX_KEY_MACHINE, CTX_KEY_LAYERS_DIR,
-        CTX_KEY_WORK_DIR, CTX_KEY_HOME_CFG_DIR, CTX_KEY_BIN_DIR, CTX_KEY_CFG_DIR, CTX_KEY_OPT_SCRIPTS_DIR,
-        CTX_KEY_RESET, CTX_KEY_OPT_DIR
+        CTX_KEY_ARCH, CTX_KEY_ARCHIVER, CTX_KEY_ARTIFACTS_DIR, CTX_KEY_BB_BUILD_DIR,
+        CTX_KEY_BB_DEPLOY_DIR, CTX_KEY_BIN_DIR, CTX_KEY_BRANCH, CTX_KEY_BUILDS_DIR,
+        CTX_KEY_BUILD_ID, CTX_KEY_BUILD_SHA, CTX_KEY_BUILD_VARIANT, CTX_KEY_CFG_DIR,
+        CTX_KEY_CONFIG, CTX_KEY_CONFIG_NAME, CTX_KEY_DATE, CTX_KEY_DEBUG_SYMBOLS, CTX_KEY_DEVICE,
+        CTX_KEY_DISTRO, CTX_KEY_EYECANDY, CTX_KEY_HOME_CFG_DIR, CTX_KEY_IMAGE, CTX_KEY_LAYERS_DIR,
+        CTX_KEY_MACHINE, CTX_KEY_NAME, CTX_KEY_OPT_DIR, CTX_KEY_OPT_SCRIPTS_DIR,
+        CTX_KEY_PLATFORM_RELEASE, CTX_KEY_PLATFORM_VERSION, CTX_KEY_PRODUCT_NAME,
+        CTX_KEY_PROJECT_NAME, CTX_KEY_RELEASE_BUILD, CTX_KEY_RESET, CTX_KEY_SCRIPTS_DIR,
+        CTX_KEY_TIME, CTX_KEY_WORKSPACE_DIR, CTX_KEY_WORK_DIR,
     };
     use crate::data::WsContextData;
     use crate::workspace::WsSettingsHandler;
@@ -298,12 +299,33 @@ mod tests {
         assert_eq!(data.get_ctx_value(CTX_KEY_RESET), String::from("false"));
         assert_eq!(data.get_ctx_value(CTX_KEY_CONFIG), String::from("NA"));
         assert_eq!(data.get_ctx_value(CTX_KEY_EYECANDY), String::from("false"));
-        assert_eq!(data.get_ctx_value(CTX_KEY_HOME_CFG_DIR), format!("{}/.bakery", std::env::var_os("HOME").unwrap().into_string().unwrap()));
-        assert_eq!(data.get_ctx_value(CTX_KEY_CFG_DIR), String::from("/etc/bakery"));
-        assert_eq!(data.get_ctx_value(CTX_KEY_BIN_DIR), String::from("/usr/bin"));
-        assert_eq!(data.get_ctx_value(CTX_KEY_OPT_DIR), String::from("/opt/bakery"));
-        assert_eq!(data.get_ctx_value(CTX_KEY_OPT_DIR), String::from("/opt/bakery"));
-        assert_eq!(data.get_ctx_value(CTX_KEY_OPT_SCRIPTS_DIR), String::from("/opt/bakery/scripts"));
+        assert_eq!(
+            data.get_ctx_value(CTX_KEY_HOME_CFG_DIR),
+            format!(
+                "{}/.bakery",
+                std::env::var_os("HOME").unwrap().into_string().unwrap()
+            )
+        );
+        assert_eq!(
+            data.get_ctx_value(CTX_KEY_CFG_DIR),
+            String::from("/etc/bakery")
+        );
+        assert_eq!(
+            data.get_ctx_value(CTX_KEY_BIN_DIR),
+            String::from("/usr/bin")
+        );
+        assert_eq!(
+            data.get_ctx_value(CTX_KEY_OPT_DIR),
+            String::from("/opt/bakery")
+        );
+        assert_eq!(
+            data.get_ctx_value(CTX_KEY_OPT_DIR),
+            String::from("/opt/bakery")
+        );
+        assert_eq!(
+            data.get_ctx_value(CTX_KEY_OPT_SCRIPTS_DIR),
+            String::from("/opt/bakery/scripts")
+        );
     }
 
     #[test]
@@ -345,7 +367,10 @@ mod tests {
         assert_eq!(data.get_ctx_value("KEY2"), "value2");
         assert_eq!(data.get_ctx_value("KEY3"), "value3");
         assert_eq!(data.get_ctx_path(CTX_KEY_WORK_DIR), settings.work_dir());
-        assert_eq!(data.get_ctx_path(CTX_KEY_WORKSPACE_DIR), settings.workspace_dir());
+        assert_eq!(
+            data.get_ctx_path(CTX_KEY_WORKSPACE_DIR),
+            settings.workspace_dir()
+        );
     }
 
     #[test]

@@ -1,4 +1,4 @@
-use indexmap::{IndexMap, indexmap};
+use indexmap::{indexmap, IndexMap};
 use regex::Regex;
 use std::path::PathBuf;
 

@@ -387,10 +387,7 @@ mod tests {
             }
         }"#;
         let settings = Helper::setup_ws_settings(json_test_str);
-        assert_eq!(
-            &settings.docker_image,
-            "yanctab/bakery/bakery-workspace"
-        );
+        assert_eq!(&settings.docker_image, "yanctab/bakery/bakery-workspace");
     }
 
     #[test]
@@ -400,10 +397,7 @@ mod tests {
             "version": "6"
         }"#;
         let settings = Helper::setup_ws_settings(json_test_str);
-        assert_eq!(
-            &settings.docker_image,
-            "yanctab/bakery/bakery-workspace"
-        );
+        assert_eq!(&settings.docker_image, "yanctab/bakery/bakery-workspace");
     }
 
     #[test]

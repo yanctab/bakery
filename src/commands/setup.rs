@@ -47,7 +47,12 @@ impl BCommand for SetupCommand {
 
         match cli.is_ws_empty(&workspace.settings().work_dir()) {
             Ok(is_empty) => {
-                let ws_dir: String = workspace.settings().work_dir().to_str().unwrap_or_default().to_string();
+                let ws_dir: String = workspace
+                    .settings()
+                    .work_dir()
+                    .to_str()
+                    .unwrap_or_default()
+                    .to_string();
                 if !is_empty {
                     return Err(BError::WorkspaceNotEmpty(ws_dir));
                 } else {
@@ -55,7 +60,10 @@ impl BCommand for SetupCommand {
                 }
             }
             Err(e) => {
-                return Err(BError::IOError(format!("Failed to check for empty workspace, {}", e.to_string())));
+                return Err(BError::IOError(format!(
+                    "Failed to check for empty workspace, {}",
+                    e.to_string()
+                )));
             }
         }
 

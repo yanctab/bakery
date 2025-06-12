@@ -152,10 +152,7 @@ impl Workspace {
         let configs: IndexMap<PathBuf, String> =
             Self::setup_list_of_available_configs(&settings, &config)?;
 
-        Ok(Workspace {
-            config,
-            configs,
-        })
+        Ok(Workspace { config, configs })
     }
 
     pub fn settings(&self) -> &WsSettingsHandler {
@@ -175,8 +172,14 @@ impl Workspace {
     // Returns true if the config is part of the list
     // of build configs supported by the workspace
     pub fn valid_config(&self, config: &str) -> bool {
-        self.build_configs()
-            .contains_key(&self.config().build_data().settings().configs_dir().join(format!("{}.json", config)))
+        self.build_configs().contains_key(
+            &self
+                .config()
+                .build_data()
+                .settings()
+                .configs_dir()
+                .join(format!("{}.json", config)),
+        )
     }
 
     pub fn update_ctx(&mut self, context: &WsContextData) -> Result<(), BError> {

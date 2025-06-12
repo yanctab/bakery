@@ -2,8 +2,8 @@ use crate::cli::{BLogger, Cli};
 use crate::commands::BCommand;
 use crate::configs::WsConfigFileHandler;
 use crate::error::BError;
-use crate::workspace::{Workspace, WsBuildConfigHandler, WsSettingsHandler};
 use crate::executers::Docker;
+use crate::workspace::{Workspace, WsBuildConfigHandler, WsSettingsHandler};
 
 use clap::Command;
 use std::path::PathBuf;
@@ -42,14 +42,16 @@ impl Bakery {
         cmd_require_docker: bool,
         err: &String,
         code: i32,
-        force: bool) -> ! {
+        force: bool,
+    ) -> ! {
         let inside_docker: bool = Docker::inside_docker();
 
         self.cli.debug(format!("Exit the command '{}'", cmd));
         self.cli.debug(format!("Inside Docker: {}", inside_docker));
-        self.cli.debug(format!("Require Docker: {}", cmd_require_docker));
+        self.cli
+            .debug(format!("Require Docker: {}", cmd_require_docker));
         self.cli.debug(format!("Error: {}", err.to_string()));
-        
+
         /*
          * Avoid logging the same command twice:
          * - Log if inside Docker.
@@ -69,13 +71,21 @@ impl Bakery {
         std::process::exit(code);
     }
 
-    pub fn unwrap_or_exit<T>(&self, 
+    pub fn unwrap_or_exit<T>(
+        &self,
         cmd: &str,
         cmd_require_docker: bool,
         force: bool,
-        result: Result<T, BError>) -> T {
+        result: Result<T, BError>,
+    ) -> T {
         result.unwrap_or_else(|err| {
-            self.bkry_exit(&cmd.to_string(), cmd_require_docker, &err.to_string(), 1, force);
+            self.bkry_exit(
+                &cmd.to_string(),
+                cmd_require_docker,
+                &err.to_string(),
+                1,
+                force,
+            );
         })
     }
 
@@ -84,7 +94,7 @@ impl Bakery {
         let home_dir: PathBuf = self.cli.get_home_dir();
         /*
          * Since we cannot reliably determine whether the command requires Docker,
-         * we will assume that it doesn't 
+         * we will assume that it doesn't
          */
         let mut cmd_require_docker: bool = false;
         let cfg_handler: WsConfigFileHandler = WsConfigFileHandler::new(&work_dir, &home_dir);
@@ -94,11 +104,16 @@ impl Bakery {
          * the current directory (.), the user config directory (~/.bakery), or the system config directory (/etc/bakery).
          * If no 'workspace.json' is found in any of these locations, exit with an "invalid workspace" error.
          */
-        self.cli.debug("Verify that we have access to the workspace.json".to_string());
+        self.cli
+            .debug("Verify that we have access to the workspace.json".to_string());
         self.unwrap_or_exit::<()>(cmd_name, cmd_require_docker, true, cfg_handler.verify_ws());
 
-        let settings: WsSettingsHandler =
-            self.unwrap_or_exit::<WsSettingsHandler>(cmd_name, cmd_require_docker, true, cfg_handler.ws_settings());
+        let settings: WsSettingsHandler = self.unwrap_or_exit::<WsSettingsHandler>(
+            cmd_name,
+            cmd_require_docker,
+            true,
+            cfg_handler.ws_settings(),
+        );
         let cmd_result: Result<&Box<dyn BCommand>, BError> = self.cli.get_command(cmd_name);
 
         self.cli.debug(format!("Current dir: {:?}", work_dir));
@@ -114,13 +129,20 @@ impl Bakery {
                     cfg_handler.build_config(&command.get_config_name(&self.cli), &settings),
                 );
 
-                self.cli.debug(format!("Build config: {}", config.build_data().name()));
-                self.cli.debug(format!("Workspace dir: {:?}", settings.work_dir()));
-                self.cli.debug(format!("Scripts dir: {:?}", settings.scripts_dir()));
-                self.cli.debug(format!("Docker image: {}", settings.docker_image()));
-                self.cli.debug(format!("Configs dir: {:?}", settings.configs_dir()));
-                self.cli.debug(format!("Includes dir: {:?}", settings.include_dir()));
-                self.cli.debug(format!("Artifacts dir: {:?}", settings.artifacts_dir()));
+                self.cli
+                    .debug(format!("Build config: {}", config.build_data().name()));
+                self.cli
+                    .debug(format!("Workspace dir: {:?}", settings.work_dir()));
+                self.cli
+                    .debug(format!("Scripts dir: {:?}", settings.scripts_dir()));
+                self.cli
+                    .debug(format!("Docker image: {}", settings.docker_image()));
+                self.cli
+                    .debug(format!("Configs dir: {:?}", settings.configs_dir()));
+                self.cli
+                    .debug(format!("Includes dir: {:?}", settings.include_dir()));
+                self.cli
+                    .debug(format!("Artifacts dir: {:?}", settings.artifacts_dir()));
 
                 /*
                  * Create the workspace configuration, which consists of the workspace settings and a
@@ -128,9 +150,9 @@ impl Bakery {
                  * while the build configuration is defined in one of the available build JSON files.
                  */
                 let mut workspace: Workspace = self.unwrap_or_exit::<Workspace>(
-                        cmd_name,
-                        cmd_require_docker,
-                        true,
+                    cmd_name,
+                    cmd_require_docker,
+                    true,
                     Workspace::new(
                         Some(work_dir),
                         Some(config.build_data().settings().clone()),
@@ -138,11 +160,26 @@ impl Bakery {
                     ),
                 );
 
-                self.cli.debug(format!("Configs dir: {:?}", workspace.settings().configs_dir()));
-                self.cli.debug(format!("Includes dir: {:?}", workspace.settings().include_dir()));
-                self.cli.debug(format!("Artifacts dir: {:?}", workspace.settings().artifacts_dir()));
-                self.cli.debug(format!("Scripts dir: {:?}", workspace.settings().scripts_dir()));
-                self.cli.debug(format!("Docker image: {}", workspace.settings().docker_image()));
+                self.cli.debug(format!(
+                    "Configs dir: {:?}",
+                    workspace.settings().configs_dir()
+                ));
+                self.cli.debug(format!(
+                    "Includes dir: {:?}",
+                    workspace.settings().include_dir()
+                ));
+                self.cli.debug(format!(
+                    "Artifacts dir: {:?}",
+                    workspace.settings().artifacts_dir()
+                ));
+                self.cli.debug(format!(
+                    "Scripts dir: {:?}",
+                    workspace.settings().scripts_dir()
+                ));
+                self.cli.debug(format!(
+                    "Docker image: {}",
+                    workspace.settings().docker_image()
+                ));
 
                 /*
                  * Verify that the directories defined in 'workspace.json' actually exist.
@@ -154,7 +191,7 @@ impl Bakery {
                     true,
                     workspace.verify_ws(),
                 );
-        
+
                 self.cli.debug(format!("Executing '{}' cmd", cmd_name));
                 self.unwrap_or_exit::<()>(
                     &cmd_name.to_string(),
@@ -164,7 +201,13 @@ impl Bakery {
                 );
             }
             Err(err) => {
-                self.bkry_exit(&cmd_name.to_string(), cmd_require_docker, &err.to_string(), 1, false);
+                self.bkry_exit(
+                    &cmd_name.to_string(),
+                    cmd_require_docker,
+                    &err.to_string(),
+                    1,
+                    false,
+                );
             }
         }
 

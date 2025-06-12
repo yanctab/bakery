@@ -79,16 +79,21 @@ impl WsConfigFileHandler {
     pub fn verify_ws(&self) -> Result<(), BError> {
         /*
          * The search order for the workspace settings is:
-         * 
+         *
          * 1. Current working directory
          * 2. ~/.bakery/
          * 3. /etc/bakery/
          *
          * If none of these contain 'workspace.json', return an invalid workspace error.
          */
-        if !self.work_dir.clone().join(WORKSPACE_SETTINGS).exists() &&
-            !self.bkry_home_cfg_dir.clone().join(WORKSPACE_SETTINGS).exists() &&
-            !self.bkry_cfg_dir.clone().join(WORKSPACE_SETTINGS).exists() {
+        if !self.work_dir.clone().join(WORKSPACE_SETTINGS).exists()
+            && !self
+                .bkry_home_cfg_dir
+                .clone()
+                .join(WORKSPACE_SETTINGS)
+                .exists()
+            && !self.bkry_cfg_dir.clone().join(WORKSPACE_SETTINGS).exists()
+        {
             return Err(BError::InvalidWorkspaceError());
         }
 
@@ -178,11 +183,11 @@ impl WsConfigFileHandler {
 
 #[cfg(test)]
 mod tests {
+    use indexmap::IndexMap;
     use std::fs::File;
     use std::io::Write;
     use std::path::PathBuf;
     use tempdir::TempDir;
-    use indexmap::IndexMap;
 
     use crate::configs::WsConfigFileHandler;
     use crate::error::BError;
@@ -242,7 +247,7 @@ mod tests {
     }
 
     /*
-     * Make sure that 
+     * Make sure that
      */
     #[test]
     fn test_cfg_handler_settings_home_dir() {

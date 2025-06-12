@@ -38,8 +38,7 @@ impl WsSettingsHandler {
         if !dir.is_dir() || !dir.exists() {
             return Err(BError::WsError(format!(
                 "Invalid workspace.json: the directory specified for '{}' does not exist: {:?}",
-                ws_dir,
-                dir
+                ws_dir, dir
             )));
         }
         return Ok(());
@@ -181,8 +180,8 @@ impl WsSettingsHandler {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
     use indexmap::{indexmap, IndexMap};
+    use std::path::PathBuf;
 
     use crate::configs::Context;
     use crate::executers::DockerImage;
@@ -438,6 +437,9 @@ mod tests {
         assert_eq!(settings.include_dir(), work_dir.join("include_test"));
         assert_eq!(settings.artifacts_dir(), work_dir.join("artifacts_var2"));
         let docker_image: DockerImage = settings.docker_image();
-        assert_eq!(format!("{}", docker_image), "test-registry-var3/test-image-var4:test2");
+        assert_eq!(
+            format!("{}", docker_image),
+            "test-registry-var3/test-image-var4:test2"
+        );
     }
 }

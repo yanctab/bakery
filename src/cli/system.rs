@@ -3,10 +3,10 @@ use crate::error::BError;
 use mockall::*;
 use std::collections::HashMap;
 use std::fmt;
+use std::fs;
 use std::fs::ReadDir;
 use std::path::PathBuf;
 use std::str;
-use std::fs;
 
 /*
 Tried using "withf" and closure when mocking the check_call for testing
