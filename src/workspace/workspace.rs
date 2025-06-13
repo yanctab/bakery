@@ -35,17 +35,19 @@ impl Workspace {
         match settings {
             Some(ws_settings) => ws_settings,
             None => {
-                // If settings is not supplied we use default
-                // settings by supplying a basic settings json
-                // string. This string should be valid and never fail
-                // so we don't care about error because we assume it
-                // will be fine. This should be added as part of one
-                // the tests.
+                /*
+                 * If settings is not supplied we use default
+                 * settings by supplying a basic settings json
+                 * string. This string should be valid and never fail
+                 * so we don't care about error because we assume it
+                 * will be fine. This should be added as part of one
+                 * the tests.
+                 */
                 let default_settings: &str = r#"
                 {
                     "version": "6"
                 }"#;
-                WsSettingsHandler::from_str(&work_dir, default_settings).unwrap()
+                WsSettingsHandler::from_str(&work_dir, default_settings, None).unwrap()
             }
         }
     }

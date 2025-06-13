@@ -18,8 +18,8 @@ impl WsConfigFileHandler {
         let bkry_cfg_dir: PathBuf = PathBuf::from("/etc/bakery");
         WsConfigFileHandler {
             work_dir: work_dir.clone(),
-            bkry_home_cfg_dir: bkry_home_cfg_dir,
-            bkry_cfg_dir: bkry_cfg_dir,
+            bkry_home_cfg_dir,
+            bkry_cfg_dir,
         }
     }
 
@@ -32,7 +32,7 @@ impl WsConfigFileHandler {
         let mut path: PathBuf = self.work_dir.clone().join(WORKSPACE_SETTINGS);
         if path.exists() {
             let settings_str: String = ConfigFileReader::new(&path).read_json()?;
-            return WsSettingsHandler::from_str(&self.work_dir, &settings_str);
+            return WsSettingsHandler::from_str(&self.work_dir, &settings_str, Some(path));
         }
 
         /*
@@ -44,7 +44,7 @@ impl WsConfigFileHandler {
         path = self.bkry_home_cfg_dir.clone().join(WORKSPACE_SETTINGS);
         if path.exists() {
             let settings_str: String = ConfigFileReader::new(&path).read_json()?;
-            return WsSettingsHandler::from_str(&self.work_dir, &settings_str);
+            return WsSettingsHandler::from_str(&self.work_dir, &settings_str, Some(path));
         }
 
         /*
@@ -54,7 +54,7 @@ impl WsConfigFileHandler {
         path = self.bkry_cfg_dir.clone().join(WORKSPACE_SETTINGS);
         if path.exists() {
             let settings_str: String = ConfigFileReader::new(&path).read_json()?;
-            return WsSettingsHandler::from_str(&self.work_dir, &settings_str);
+            return WsSettingsHandler::from_str(&self.work_dir, &settings_str, Some(path));
         }
 
         /*
@@ -66,7 +66,7 @@ impl WsConfigFileHandler {
         {
             "version": "6"
         }"#;
-        return WsSettingsHandler::from_str(&self.work_dir, default_settings);
+        return WsSettingsHandler::from_str(&self.work_dir, default_settings, None);
     }
 
     fn config_header(&self, config: &WsBuildConfigHandler) -> String {

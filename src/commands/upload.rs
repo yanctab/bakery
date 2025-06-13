@@ -188,8 +188,9 @@ mod tests {
             .once()
             .returning(|_x| Ok(()));
         mocked_system.expect_env().returning(|| HashMap::new());
-        let settings: WsSettingsHandler = WsSettingsHandler::from_str(work_dir, json_ws_settings)
-            .expect("Failed to parse settings");
+        let settings: WsSettingsHandler =
+            WsSettingsHandler::from_str(work_dir, json_ws_settings, None)
+                .expect("Failed to parse settings");
         let config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_build_config, &settings)
                 .expect("Failed to parse build config");
@@ -256,8 +257,9 @@ mod tests {
             .once()
             .returning(|_x| Ok(()));
         mocked_system.expect_env().returning(|| HashMap::new());
-        let settings: WsSettingsHandler = WsSettingsHandler::from_str(work_dir, json_ws_settings)
-            .expect("Failed to parse settings");
+        let settings: WsSettingsHandler =
+            WsSettingsHandler::from_str(work_dir, json_ws_settings, None)
+                .expect("Failed to parse settings");
         let config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_build_config, &settings)
                 .expect("Failed to parse build config");

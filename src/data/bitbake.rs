@@ -206,8 +206,9 @@ mod tests {
             "version": "6"
         }"#;
         let work_dir: PathBuf = PathBuf::from("/workspace");
-        let settings: WsSettingsHandler = WsSettingsHandler::from_str(&work_dir, json_settings)
-            .expect("Failed to parse settings");
+        let settings: WsSettingsHandler =
+            WsSettingsHandler::from_str(&work_dir, json_settings, None)
+                .expect("Failed to parse settings");
         let data: WsBitbakeData = WsBitbakeData::from_str(json_build_config, &settings)
             .expect("Failed to parse product data");
         assert_eq!(data.machine(), "NA");
@@ -279,8 +280,9 @@ mod tests {
             }
         }"#;
         let work_dir: PathBuf = PathBuf::from("/workspace");
-        let settings: WsSettingsHandler = WsSettingsHandler::from_str(&work_dir, json_settings)
-            .expect("Failed to parse settings");
+        let settings: WsSettingsHandler =
+            WsSettingsHandler::from_str(&work_dir, json_settings, None)
+                .expect("Failed to parse settings");
         let data: WsBitbakeData = WsBitbakeData::from_str(json_build_config, &settings)
             .expect("Failed to parse product data");
         assert_eq!(data.machine(), "test-machine");
@@ -375,8 +377,9 @@ mod tests {
             }
         }"#;
         let work_dir: PathBuf = PathBuf::from("/bakery-ws");
-        let settings: WsSettingsHandler = WsSettingsHandler::from_str(&work_dir, json_settings)
-            .expect("Failed to parse settings");
+        let settings: WsSettingsHandler =
+            WsSettingsHandler::from_str(&work_dir, json_settings, None)
+                .expect("Failed to parse settings");
         let mut data: WsBitbakeData = WsBitbakeData::from_str(json_build_config, &settings)
             .expect("Failed to parse product data");
         let variables: IndexMap<String, String> = indexmap! {
@@ -414,8 +417,9 @@ mod tests {
         }"#;
         let json_bb = r#""bb": {"bblayersconf":[],"deploydir":"tmp/test/deploy","distro":"test-distro","docker":"test-registry/test-image:0.1","initenv":"layers/test/oe-my-init-env","localconf":[],"machine":"test-machine"}"#;
         let work_dir: PathBuf = PathBuf::from("/workspace");
-        let settings: WsSettingsHandler = WsSettingsHandler::from_str(&work_dir, json_settings)
-            .expect("Failed to parse settings");
+        let settings: WsSettingsHandler =
+            WsSettingsHandler::from_str(&work_dir, json_settings, None)
+                .expect("Failed to parse settings");
         let data: WsBitbakeData = WsBitbakeData::from_str(json_build_config, &settings)
             .expect("Failed to parse product data");
         assert_eq!(data.to_string(), json_bb);

@@ -191,7 +191,7 @@ mod tests {
         }"#;
         let work_dir: PathBuf = PathBuf::from("/workspace");
         let mut ws_settings: WsSettingsHandler =
-            WsSettingsHandler::from_str(&work_dir, json_settings).unwrap();
+            WsSettingsHandler::from_str(&work_dir, json_settings, None).unwrap();
         let ws_config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_build_config, &mut ws_settings)
                 .expect("Failed to parse build config");
@@ -297,7 +297,7 @@ mod tests {
         }"#;
         let work_dir: PathBuf = PathBuf::from("/workspace");
         let mut ws_settings: WsSettingsHandler =
-            WsSettingsHandler::from_str(&work_dir, json_settings).unwrap();
+            WsSettingsHandler::from_str(&work_dir, json_settings, None).unwrap();
         let mut ws_config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_build_config, &mut ws_settings)
                 .expect("Failed to parse build config");
@@ -323,7 +323,7 @@ mod tests {
         }"#;
         let work_dir: PathBuf = PathBuf::from("/workspace");
         let mut ws_settings: WsSettingsHandler =
-            WsSettingsHandler::from_str(&work_dir, json_settings).unwrap();
+            WsSettingsHandler::from_str(&work_dir, json_settings, None).unwrap();
         let ws_config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_build_config, &mut ws_settings)
                 .expect("Failed to parse build config");
@@ -412,7 +412,7 @@ mod tests {
         }"#;
         let work_dir: PathBuf = PathBuf::from("/workspace");
         let mut ws_settings: WsSettingsHandler =
-            WsSettingsHandler::from_str(&work_dir, json_settings).unwrap();
+            WsSettingsHandler::from_str(&work_dir, json_settings, None).unwrap();
         let mut ws_config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_build_config, &mut ws_settings)
                 .expect("Failed to parse build config");
@@ -468,7 +468,7 @@ mod tests {
         }"#;
         let work_dir: PathBuf = PathBuf::from("/workspace");
         let mut ws_settings: WsSettingsHandler =
-            WsSettingsHandler::from_str(&work_dir, json_settings).unwrap();
+            WsSettingsHandler::from_str(&work_dir, json_settings, None).unwrap();
         let mut ws_config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_build_config, &mut ws_settings)
                 .expect("Failed to parse build config");
@@ -521,7 +521,7 @@ mod tests {
         }"#;
         let work_dir: PathBuf = PathBuf::from("/workspace");
         let mut ws_settings: WsSettingsHandler =
-            WsSettingsHandler::from_str(&work_dir, json_settings).unwrap();
+            WsSettingsHandler::from_str(&work_dir, json_settings, None).unwrap();
         let mut ws_config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_build_config, &mut ws_settings)
                 .expect("Failed to parse build config");
@@ -606,7 +606,7 @@ mod tests {
         }"#;
         let work_dir: PathBuf = PathBuf::from("/workspace");
         let mut ws_settings: WsSettingsHandler =
-            WsSettingsHandler::from_str(&work_dir, json_settings).unwrap();
+            WsSettingsHandler::from_str(&work_dir, json_settings, None).unwrap();
         let ws_config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_build_config, &mut ws_settings)
                 .expect("Failed to parse build config");
@@ -642,7 +642,7 @@ mod tests {
         }"#;
         let work_dir: PathBuf = PathBuf::from("/workspace");
         let mut ws_settings: WsSettingsHandler =
-            WsSettingsHandler::from_str(&work_dir, json_settings).unwrap();
+            WsSettingsHandler::from_str(&work_dir, json_settings, None).unwrap();
         let result: Result<WsBuildConfigHandler, BError> =
             WsBuildConfigHandler::from_str(json_build_config, &mut ws_settings);
         match result {
@@ -752,7 +752,7 @@ mod tests {
         }"#;
         let work_dir: PathBuf = PathBuf::from("/workspace");
         let mut ws_settings: WsSettingsHandler =
-            WsSettingsHandler::from_str(&work_dir, json_settings).unwrap();
+            WsSettingsHandler::from_str(&work_dir, json_settings, None).unwrap();
         let mut ws_main_config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_main_build_config, &mut ws_settings)
                 .expect("Failed to parse build config");

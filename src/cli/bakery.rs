@@ -122,6 +122,12 @@ impl Bakery {
         match cmd_result {
             Ok(command) => {
                 cmd_require_docker = command.is_docker_required();
+
+                self.cli
+                    .debug(format!("Workspace dir: {:?}", settings.work_dir()));
+                self.cli
+                    .debug(format!("Configs dir: {:?}", settings.configs_dir()));
+
                 let config: WsBuildConfigHandler = self.unwrap_or_exit(
                     cmd_name,
                     cmd_require_docker,
@@ -131,18 +137,6 @@ impl Bakery {
 
                 self.cli
                     .debug(format!("Build config: {}", config.build_data().name()));
-                self.cli
-                    .debug(format!("Workspace dir: {:?}", settings.work_dir()));
-                self.cli
-                    .debug(format!("Scripts dir: {:?}", settings.scripts_dir()));
-                self.cli
-                    .debug(format!("Docker image: {}", settings.docker_image()));
-                self.cli
-                    .debug(format!("Configs dir: {:?}", settings.configs_dir()));
-                self.cli
-                    .debug(format!("Includes dir: {:?}", settings.include_dir()));
-                self.cli
-                    .debug(format!("Artifacts dir: {:?}", settings.artifacts_dir()));
 
                 /*
                  * Create the workspace configuration, which consists of the workspace settings and a
@@ -179,6 +173,10 @@ impl Bakery {
                 self.cli.debug(format!(
                     "Docker image: {}",
                     workspace.settings().docker_image()
+                ));
+                self.cli.debug(format!(
+                    "Workspace config: {:?}",
+                    workspace.settings().path()
                 ));
 
                 /*

@@ -42,6 +42,7 @@ impl BCommand for ListCommand {
     fn execute(&self, cli: &Cli, workspace: &mut Workspace) -> Result<(), BError> {
         let config: String = self.get_arg_str(cli, "config", BCOMMAND)?;
         let ctx: bool = self.get_arg_flag(cli, "ctx", BCOMMAND)?;
+
         if config == "NA" {
             // default value if not specified
             // If no config is specified then we will list all supported build configs
@@ -99,6 +100,7 @@ impl BCommand for ListCommand {
                 )));
             }
         }
+
         Ok(())
     }
 }
@@ -173,7 +175,8 @@ mod tests {
         msystem: MockSystem,
         cmd_line: Vec<&str>,
     ) -> Result<(), BError> {
-        let settings: WsSettingsHandler = WsSettingsHandler::from_str(work_dir, json_ws_settings)?;
+        let settings: WsSettingsHandler =
+            WsSettingsHandler::from_str(work_dir, json_ws_settings, None)?;
         let config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_build_config, &settings)?;
         let mut workspace: Workspace =

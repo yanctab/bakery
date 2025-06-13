@@ -383,7 +383,8 @@ mod tests {
         system: Box<dyn System>,
         cmd_line: Vec<&str>,
     ) -> Result<(), BError> {
-        let settings: WsSettingsHandler = WsSettingsHandler::from_str(work_dir, json_ws_settings)?;
+        let settings: WsSettingsHandler =
+            WsSettingsHandler::from_str(work_dir, json_ws_settings, None)?;
         let config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_build_config, &settings)?;
         let mut workspace: Workspace =
@@ -482,8 +483,9 @@ mod tests {
         let build_dir: PathBuf = work_dir.join("builds/default");
         let local_conf_path: PathBuf = build_dir.clone().join("conf/local.conf");
         let bblayers_conf_path: PathBuf = build_dir.clone().join("conf/bblayers.conf");
-        let settings: WsSettingsHandler = WsSettingsHandler::from_str(&work_dir, json_ws_settings)
-            .expect("Failed to setup settings handler");
+        let settings: WsSettingsHandler =
+            WsSettingsHandler::from_str(&work_dir, json_ws_settings, None)
+                .expect("Failed to setup settings handler");
         let config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_build_config, &settings)
                 .expect("Failed to setup build config handler");

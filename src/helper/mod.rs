@@ -220,7 +220,7 @@ impl Helper {
     ) -> WsBuildConfigHandler {
         let work_dir: PathBuf = PathBuf::from(test_work_dir);
         let mut settings: WsSettingsHandler =
-            WsSettingsHandler::new(work_dir, Helper::setup_ws_settings(json_settings));
+            WsSettingsHandler::new(work_dir, Helper::setup_ws_settings(json_settings), None);
         let result: Result<WsBuildConfigHandler, BError> =
             WsBuildConfigHandler::from_str(json_build_config, &mut settings);
         match result {
@@ -238,8 +238,11 @@ impl Helper {
         json_build_config: &str,
     ) -> Workspace {
         let work_dir: PathBuf = PathBuf::from(test_work_dir);
-        let mut settings: WsSettingsHandler =
-            WsSettingsHandler::new(work_dir.clone(), Self::setup_ws_settings(json_settings));
+        let mut settings: WsSettingsHandler = WsSettingsHandler::new(
+            work_dir.clone(),
+            Self::setup_ws_settings(json_settings),
+            None,
+        );
         let config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_build_config, &mut settings)
                 .expect("Failed to parse build config");
@@ -260,9 +263,12 @@ impl Helper {
         {
             "version": "6"
         }"#;
-        let ws_settings: WsSettingsHandler =
-            WsSettingsHandler::from_str(&work_dir, json_settings.unwrap_or(json_default_settings))
-                .unwrap_or_else(|err| panic!("Error parsing JSON settings: {}", err));
+        let ws_settings: WsSettingsHandler = WsSettingsHandler::from_str(
+            &work_dir,
+            json_settings.unwrap_or(json_default_settings),
+            None,
+        )
+        .unwrap_or_else(|err| panic!("Error parsing JSON settings: {}", err));
 
         let data: WsBuildData = WsBuildData::from_str(
             json_build_config.unwrap_or(json_default_build_config),

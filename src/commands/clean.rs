@@ -170,7 +170,8 @@ mod tests {
         system: Box<dyn System>,
         cmd_line: Vec<&str>,
     ) -> Result<(), BError> {
-        let settings: WsSettingsHandler = WsSettingsHandler::from_str(work_dir, json_ws_settings)?;
+        let settings: WsSettingsHandler =
+            WsSettingsHandler::from_str(work_dir, json_ws_settings, None)?;
         let config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_build_config, &settings)?;
         let mut workspace: Workspace =

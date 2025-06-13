@@ -200,8 +200,9 @@ mod tests {
             .expect_is_directory_empty()
             .once()
             .returning(|_x| Ok(true));
-        let settings: WsSettingsHandler = WsSettingsHandler::from_str(work_dir, json_ws_settings)
-            .expect("Failed to parse settings");
+        let settings: WsSettingsHandler =
+            WsSettingsHandler::from_str(work_dir, json_ws_settings, None)
+                .expect("Failed to parse settings");
         let config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_build_config, &settings)
                 .expect("Failed to parse build config");
@@ -272,8 +273,9 @@ mod tests {
             .expect_is_directory_empty()
             .once()
             .returning(|_x| Ok(true));
-        let settings: WsSettingsHandler = WsSettingsHandler::from_str(work_dir, json_ws_settings)
-            .expect("Failed to parse settings");
+        let settings: WsSettingsHandler =
+            WsSettingsHandler::from_str(work_dir, json_ws_settings, None)
+                .expect("Failed to parse settings");
         let config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_build_config, &settings)
                 .expect("Failed to parse build config");
@@ -346,8 +348,9 @@ mod tests {
             .expect_is_directory_empty()
             .once()
             .returning(|_x| Ok(true));
-        let settings: WsSettingsHandler = WsSettingsHandler::from_str(work_dir, json_ws_settings)
-            .expect("Failed to parse settings");
+        let settings: WsSettingsHandler =
+            WsSettingsHandler::from_str(work_dir, json_ws_settings, None)
+                .expect("Failed to parse settings");
         let config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_build_config, &settings)
                 .expect("Failed to parse build config");

@@ -344,8 +344,9 @@ mod tests {
             ]
         }"#;
         let work_dir: PathBuf = PathBuf::from("/workspace");
-        let settings: WsSettingsHandler = WsSettingsHandler::from_str(&work_dir, json_settings)
-            .expect("Failed to parse settings");
+        let settings: WsSettingsHandler =
+            WsSettingsHandler::from_str(&work_dir, json_settings, None)
+                .expect("Failed to parse settings");
         let mut data: WsContextData =
             WsContextData::from_str(json_build_config).expect("Failed to parse context data");
         let ctx_built_in_variables: IndexMap<String, String> = indexmap! {
