@@ -18,6 +18,18 @@ use users::Groups;
 pub struct Helper;
 
 impl Helper {
+    pub fn write_json_conf(path: &PathBuf, json_str: &str) {
+        if let Some(parent_dir) = path.parent() {
+            std::fs::create_dir_all(parent_dir).expect("Failed create parent dir");
+        }
+
+        let mut file: File = File::create(&path).expect("Failed to create file");
+
+        // Write the JSON string to the file.
+        file.write_all(json_str.as_bytes())
+            .expect("Failed to write json to file");
+    }
+
     pub fn setup_test_ws_default_dirs(work_dir: &Path) {
         std::fs::create_dir_all(work_dir.join("configs")).expect("Failed to create config dir!");
         std::fs::create_dir_all(work_dir.join("configs/include"))
@@ -28,6 +40,11 @@ impl Helper {
         std::fs::create_dir_all(work_dir.join("scripts")).expect("Failed to create scripts dir!");
         std::fs::create_dir_all(work_dir.join("docker")).expect("Failed to create docker dir!");
         std::fs::create_dir_all(work_dir.join(".cache")).expect("Failed to create cache dir!");
+        let default_settings: &str = r#"
+        {
+            "version": "5"
+        }"#;
+        Helper::write_json_conf(&work_dir.join("workspace.json"), default_settings);
     }
 
     pub fn setup_test_ws_dirs(ws_settings: &WsSettingsHandler) {

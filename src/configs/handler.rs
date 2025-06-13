@@ -1,5 +1,7 @@
+use indexmap::indexmap;
 use std::path::PathBuf;
 
+use crate::data::WsContextData;
 use crate::error::BError;
 use crate::fs::ConfigFileReader;
 use crate::workspace::{WsBuildConfigHandler, WsSettingsHandler};
@@ -13,6 +15,18 @@ pub struct WsConfigFileHandler {
 }
 
 impl WsConfigFileHandler {
+    fn _load_settings_from_path(&self, path: &PathBuf) -> Result<WsSettingsHandler, BError> {
+        let settings_str: String = ConfigFileReader::new(path).read_json()?;
+        let mut settings: WsSettingsHandler =
+            WsSettingsHandler::from_str(&self.work_dir, &settings_str, Some(path.clone()))?;
+
+        // Create a context with default values and expand the settings
+        let context: WsContextData = WsContextData::new(&indexmap! {})?;
+        settings.expand_ctx(context.ctx())?;
+
+        Ok(settings)
+    }
+
     pub fn new(work_dir: &PathBuf, home_dir: &PathBuf) -> Self {
         let bkry_home_cfg_dir: PathBuf = home_dir.clone().join(".bakery");
         let bkry_cfg_dir: PathBuf = PathBuf::from("/etc/bakery");
@@ -24,43 +38,25 @@ impl WsConfigFileHandler {
     }
 
     pub fn ws_settings(&self) -> Result<WsSettingsHandler, BError> {
+        let paths: Vec<PathBuf> = vec![
+            self.work_dir.join(WORKSPACE_SETTINGS),          // First
+            self.bkry_home_cfg_dir.join(WORKSPACE_SETTINGS), // Second
+            self.bkry_cfg_dir.join(WORKSPACE_SETTINGS),      // Third
+        ];
+
         /*
-         * By default, the workspace settings file is expected in the current directory
-         * from where Bakery is executed. Typically, this file is included in the
-         * cloned repository that contains the metadata needed to build the product.
+         * Iterate over current work/workspace dir, ~/.bakery, /etc/bakery
          */
-        let mut path: PathBuf = self.work_dir.clone().join(WORKSPACE_SETTINGS);
-        if path.exists() {
-            let settings_str: String = ConfigFileReader::new(&path).read_json()?;
-            return WsSettingsHandler::from_str(&self.work_dir, &settings_str, Some(path));
+        for path in paths {
+            if path.exists() {
+                // Load the setting from the first existing workspace.json found
+                return self._load_settings_from_path(&path);
+            }
         }
 
         /*
-         * The workspace settings file `workspace.json` can also be placed at
-         * ${HOME}/.bakery/workspace.json. If present, this file will override
-         * the workspace settings defined in the product repository. This allows
-         * developers to customize workspace settings locally if needed.
-         */
-        path = self.bkry_home_cfg_dir.clone().join(WORKSPACE_SETTINGS);
-        if path.exists() {
-            let settings_str: String = ConfigFileReader::new(&path).read_json()?;
-            return WsSettingsHandler::from_str(&self.work_dir, &settings_str, Some(path));
-        }
-
-        /*
-         * If no workspace settings file is found under ${HOME}/.bakery/,
-         * fall back to checking /etc/bakery/ for a system-wide configuration.
-         */
-        path = self.bkry_cfg_dir.clone().join(WORKSPACE_SETTINGS);
-        if path.exists() {
-            let settings_str: String = ConfigFileReader::new(&path).read_json()?;
-            return WsSettingsHandler::from_str(&self.work_dir, &settings_str, Some(path));
-        }
-
-        /*
-         * Return default settings. Only the version is required here;
-         * all other values can be provided by the settings handler if
-         * they are not defined in the JSON file.
+         * Return default settings the only thing required is the version the rest
+         * be defined by the settings handler if it is not defined in the json
          */
         let default_settings: &str = r#"
         {
@@ -196,18 +192,6 @@ mod tests {
         WsBuildConfigHandler, WsCustomSubCmdHandler, WsSettingsHandler, WsTaskHandler,
     };
 
-    fn write_json_conf(path: &PathBuf, json_str: &str) {
-        if let Some(parent_dir) = path.parent() {
-            std::fs::create_dir_all(parent_dir).expect("Failed create parent dir");
-        }
-
-        let mut file: File = File::create(&path).expect("Failed to create file");
-
-        // Write the JSON string to the file.
-        file.write_all(json_str.as_bytes())
-            .expect("Failed to write json to file");
-    }
-
     /*
      * Test that if no workspace settings file is available the default is used.
      * All the directories should be the default once
@@ -215,7 +199,7 @@ mod tests {
     #[test]
     fn test_cfg_handler_settings_default() {
         let temp_dir: TempDir =
-            TempDir::new("deej-test-dir").expect("Failed to create temp directory");
+            TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
         let work_dir: PathBuf = PathBuf::from(temp_dir.path()).join("workspace");
         let home_dir: PathBuf = PathBuf::from(temp_dir.path()).join("home");
         Helper::setup_test_ws_default_dirs(&work_dir);
@@ -263,7 +247,7 @@ mod tests {
                 "configsdir": "config1_dir"
             }
         }"#;
-        write_json_conf(&work_dir.clone().join("workspace.json"), ws_settings_1);
+        Helper::write_json_conf(&work_dir.clone().join("workspace.json"), ws_settings_1);
         let ws_settings_2: &str = r#"
         {
             "version": "6",
@@ -271,7 +255,7 @@ mod tests {
                 "configsdir": "config2_dir"
             }
         }"#;
-        write_json_conf(
+        Helper::write_json_conf(
             &home_dir.clone().join(".bakery/workspace.json"),
             ws_settings_2,
         );
@@ -299,7 +283,7 @@ mod tests {
                 "configsdir": "work_dir"
             }
         }"#;
-        write_json_conf(&work_dir.clone().join("workspace.json"), ws_settings);
+        Helper::write_json_conf(&work_dir.clone().join("workspace.json"), ws_settings);
         let cfg_handler: WsConfigFileHandler = WsConfigFileHandler::new(&work_dir, &home_dir);
         let settings: WsSettingsHandler = cfg_handler
             .ws_settings()
@@ -357,7 +341,7 @@ mod tests {
             "description": "Test Description",
             "arch": "test-arch"
         }"#;
-        write_json_conf(
+        Helper::write_json_conf(
             &settings.work_dir().join("test.json"),
             build_conf_ws_root_dir,
         );
@@ -368,7 +352,7 @@ mod tests {
             "description": "Test Description",
             "arch": "test-arch"
         }"#;
-        write_json_conf(
+        Helper::write_json_conf(
             &settings.configs_dir().join("test.json"),
             build_conf_configs_dir,
         );
@@ -399,7 +383,7 @@ mod tests {
             "description": "Test Description",
             "arch": "test-arch"
         }"#;
-        write_json_conf(
+        Helper::write_json_conf(
             &settings.configs_dir().join("test.json"),
             build_conf_configs_dir,
         );
@@ -466,7 +450,7 @@ mod tests {
                 "cmd": "main"
             }
         }"#;
-        write_json_conf(&settings.work_dir().join("main.json"), main_build_config);
+        Helper::write_json_conf(&settings.work_dir().join("main.json"), main_build_config);
         let build_config1 = r#"
         {
             "version": "6",
@@ -504,7 +488,7 @@ mod tests {
                 "cmd": "config1"
             }
         }"#;
-        write_json_conf(&settings.include_dir().join("config1.json"), build_config1);
+        Helper::write_json_conf(&settings.include_dir().join("config1.json"), build_config1);
         let build_config2 = r#"
         {
             "version": "6",
@@ -527,7 +511,7 @@ mod tests {
                 "cmd": "config2"
             }
         }"#;
-        write_json_conf(&settings.include_dir().join("config2.json"), build_config2);
+        Helper::write_json_conf(&settings.include_dir().join("config2.json"), build_config2);
         let config: WsBuildConfigHandler = cfg_handler
             .build_config("main", &settings)
             .expect("Failed parse build config");
