@@ -6,6 +6,7 @@ mod data;
 mod error;
 mod executers;
 mod fs;
+mod global;
 mod helper;
 mod workspace;
 

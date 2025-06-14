@@ -1,4 +1,5 @@
 use crate::error::BError;
+use crate::global::TestMode;
 
 use mockall::*;
 use std::collections::HashMap;
@@ -64,6 +65,11 @@ impl System for BSystem {
             cmd.push_str(c);
             cmd.push(' ');
         });
+
+        if TestMode::is_test_mode() {
+            println!("{}", cmd.as_str().trim_end());
+            return Ok(());
+        }
 
         //println!("params: '{}'", params);
 

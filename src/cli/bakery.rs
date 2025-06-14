@@ -3,7 +3,8 @@ use crate::commands::BCommand;
 use crate::configs::WsConfigFileHandler;
 use crate::error::BError;
 use crate::executers::Docker;
-use crate::workspace::{Workspace, WsBuildConfigHandler, WsSettingsHandler};
+use crate::workspace::{Workspace, WsBuildConfigHandler, WsSettingsHandler, Mode};
+use crate::global::TestMode;
 
 use clap::Command;
 use std::path::PathBuf;
@@ -159,6 +160,13 @@ impl Bakery {
                         Some(config),
                     ),
                 );
+
+                self.cli.debug(format!("Mode: {:?}", workspace.settings().mode()));
+
+                if workspace.settings().mode() == Mode::TEST {
+                    self.cli.debug("Enter Test mode".to_string());
+                    TestMode::set_test_mode(true);
+                }
 
                 self.cli.debug(format!(
                     "Includes dir: {:?}",
