@@ -1,4 +1,3 @@
-use clap::builder::Str;
 use indexmap::{indexmap, IndexMap};
 use std::collections::HashMap;
 
@@ -11,7 +10,7 @@ use crate::data::context::{
 use crate::data::WsContextData;
 use crate::error::BError;
 use crate::executers::Docker;
-use crate::workspace::{Workspace, WsTaskHandler};
+use crate::workspace::{Workspace, WsTaskHandler, Mode};
 
 static BCOMMAND: &str = "build";
 static BCOMMAND_ABOUT: &str =
@@ -66,6 +65,10 @@ impl BCommand for BuildCommand {
         let verbose: bool = self.get_arg_flag(cli, "verbose", BCOMMAND)?;
         let mut bb_variables: Vec<String> = Vec::new();
         let mut interactive: bool = false;
+
+        if workspace.settings().mode() == Mode::SETUP {
+            return Err(BError::CmdInsideWorkspace(self.cmd.cmd_str.to_string()));
+        }
 
         if interactive_str == "true" {
             interactive = true;

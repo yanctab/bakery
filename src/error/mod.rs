@@ -41,6 +41,8 @@ pub enum BError {
     DockerImageError(String),
     #[error("The workspace '{0}' is not empty! To setup workspace run 'bakery setup' in an empty directory. To sync run 'bakery sync'")]
     WorkspaceNotEmpty(String),
+    #[error("The 'bakery {0}' command must be executed within an existing workspace. Please run 'bakery setup' or navigate to an existing workspace directory")]
+    CmdInsideWorkspace(String),
 }
 
 impl std::convert::From<serde_json::Error> for BError {

@@ -1,10 +1,9 @@
 use indexmap::{indexmap, IndexMap};
-use std::collections::HashMap;
 
 use crate::cli::Cli;
 use crate::commands::{BBaseCommand, BCommand, BError};
 use crate::data::{WsContextData, CTX_KEY_DEVICE, CTX_KEY_IMAGE};
-use crate::workspace::{Workspace, WsCustomSubCmdHandler};
+use crate::workspace::{Workspace, WsCustomSubCmdHandler, Mode};
 
 static BCOMMAND: &str = "deploy";
 static BCOMMAND_ABOUT: &str = "Deploy artifacts to the target.";
@@ -45,6 +44,10 @@ impl BCommand for DeployCommand {
         let image: String = self.get_arg_str(cli, "image", BCOMMAND)?;
         let args_context: IndexMap<String, String> = self.setup_context(ctx);
         let mut context: WsContextData = WsContextData::new(&args_context)?;
+
+        if workspace.settings().mode() == Mode::SETUP {
+            return Err(BError::CmdInsideWorkspace(self.cmd.cmd_str.to_string()));
+        }
 
         if device != String::from("NA") {
             context.update(&indexmap! {

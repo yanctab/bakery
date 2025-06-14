@@ -1,11 +1,10 @@
 use indexmap::IndexMap;
-use std::collections::HashMap;
 
 use crate::cli::Cli;
 use crate::commands::{BBaseCommand, BCommand, BError};
 use crate::data::WsContextData;
 use crate::executers::Docker;
-use crate::workspace::Workspace;
+use crate::workspace::{Workspace, Mode};
 use crate::workspace::WsCustomSubCmdHandler;
 
 static BCOMMAND: &str = "upload";
@@ -52,6 +51,10 @@ impl BCommand for UploadCommand {
                 "Unsupported build config '{}'",
                 config
             )));
+        }
+
+        if workspace.settings().mode() == Mode::SETUP {
+            return Err(BError::CmdInsideWorkspace(self.cmd.cmd_str.to_string()));
         }
 
         /*

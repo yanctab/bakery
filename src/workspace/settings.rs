@@ -4,6 +4,13 @@ use crate::{configs::WsSettings, executers::DockerImage};
 
 use std::path::{Path, PathBuf};
 
+#[derive(Debug, PartialEq)]
+pub enum Mode {
+    DEFAULT,
+    SETUP,
+    TEST,
+}
+
 #[derive(Clone)]
 pub struct WsSettingsHandler {
     work_dir: PathBuf,
@@ -152,6 +159,23 @@ impl WsSettingsHandler {
             }
             _ => {
                 return false;
+            }
+        }
+    }
+
+    pub fn mode(&self) -> Mode {
+        match self.ws_settings.mode.as_str() {
+            "default" => {
+                return Mode::DEFAULT;
+            }
+            "setup" => {
+                return Mode::SETUP;
+            }
+            "test" => {
+                return Mode::TEST;
+            }
+            _ => {
+                return Mode::DEFAULT;
             }
         }
     }

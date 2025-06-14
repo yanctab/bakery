@@ -6,7 +6,7 @@ use crate::cli::Cli;
 use crate::commands::{BBaseCommand, BCommand, BError};
 use crate::data::{WsContextData, CTX_KEY_EYECANDY};
 use crate::executers::{Docker, DockerImage};
-use crate::workspace::Workspace;
+use crate::workspace::{Workspace, Mode};
 
 static BCOMMAND: &str = "shell";
 static BCOMMAND_ABOUT: &str =
@@ -52,6 +52,10 @@ impl BCommand for ShellCommand {
         let interactive_str: String = self.get_arg_str(cli, "interactive", BCOMMAND)?;
         let mut res: Result<(), BError> = Ok(());
         let mut interactive: bool = false;
+
+        if workspace.settings().mode() == Mode::SETUP {
+            return Err(BError::CmdInsideWorkspace(self.cmd.cmd_str.to_string()));
+        }
 
         if interactive_str == "true" {
             interactive = true;

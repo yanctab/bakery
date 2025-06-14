@@ -21,6 +21,7 @@ macro_rules! merge_field {
 #[derive(Clone)]
 pub struct WsSettings {
     pub version: String,
+    pub mode: String,
     pub configs_dir: String,
     pub builds_dir: String,
     pub artifacts_dir: String,
@@ -45,6 +46,11 @@ impl WsSettings {
     pub fn from_str(json_string: &str) -> Result<Self, BError> {
         let data: Value = Self::parse(json_string)?;
         let version: String = Self::get_str_value("version", &data, None)?;
+        let mode: String = Self::get_str_value(
+            "mode",
+            &data,
+            Some(String::from("default")),
+        )?;
         let mut configs_dir: String = String::from("configs");
         let mut include_dir: String = String::from("configs/include");
         let mut builds_dir: String = String::from("builds");
@@ -122,6 +128,7 @@ impl WsSettings {
 
         Ok(WsSettings {
             version,
+            mode,
             configs_dir,
             include_dir,
             builds_dir,
@@ -639,9 +646,9 @@ mod tests {
         /*
          * TODO: this merging logic is not fully working. The idea is that we should
          * have a hirarchy of workspace.json files one in the actual workspace and then
-         * one under ~/.deej/workspace.json where these two are being merge. We are not
+         * one under ~/.bakery/workspace.json where these two are being merge. We are not
          * using it jet so it is fine as it is for now but if it is going to be used we
-         * need to fix it. The file under ~/.deej/workspace.json is the one with higher
+         * need to fix it. The file under ~/.bakery/workspace.json is the one with higher
          * priority so any value in this one should be be prioritized over a value in
          * the workspace.json in the actual workspace.
          */

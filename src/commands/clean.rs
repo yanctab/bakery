@@ -6,7 +6,7 @@ use crate::commands::{BBaseCommand, BCommand};
 use crate::data::WsContextData;
 use crate::error::BError;
 use crate::executers::Docker;
-use crate::workspace::{Workspace, WsTaskHandler};
+use crate::workspace::{Workspace, WsTaskHandler, Mode};
 
 static BCOMMAND: &str = "clean";
 static BCOMMAND_ABOUT: &str = "Clean one or all tasks defined in a build config.";
@@ -52,6 +52,10 @@ impl BCommand for CleanCommand {
                 "Unsupported build config '{}'",
                 config
             )));
+        }
+
+        if workspace.settings().mode() == Mode::SETUP {
+            return Err(BError::CmdInsideWorkspace(self.cmd.cmd_str.to_string()));
         }
 
         /*
