@@ -1,4 +1,4 @@
-use indexmap::{IndexMap, indexmap};
+use indexmap::{indexmap, IndexMap};
 use regex::Regex;
 use std::path::PathBuf;
 
@@ -44,14 +44,14 @@ impl Context {
             match self.variables.get(var_name) {
                 Some(value) => {
                     if value.is_empty() {
-                        // If empty return 
+                        // If empty return
                         empty_error = true;
                         caps[0].to_string()
                     } else {
                         // Replace with the value from the HashMap
                         value.to_string()
                     }
-                },
+                }
                 None => {
                     /*
                      * No context variable found return an error string
@@ -61,7 +61,7 @@ impl Context {
                     na_error = true;
                     error_str = format!("$#[_NA_{}_]", var_name.to_uppercase());
                     caps[0].to_string()
-                },
+                }
             }
         });
 
@@ -98,15 +98,16 @@ impl Context {
             // Check if the result is an error string
             if expanded_string.starts_with("$#[_NA_") {
                 // Extract the variable name from the error string
-                if let Some(var_name) = self._extract_str("$#[_NA_", "_]",&expanded_string) {
+                if let Some(var_name) = self._extract_str("$#[_NA_", "_]", &expanded_string) {
                     return Err(BError::CtxKeyError(format!(
                         "Failed to expand context: no such variable '$#[{}]' in context",
                         var_name
-                        )));
+                    )));
                 }
             } else if expanded_string.starts_with("$#[_EMPTY_") {
                 // if the context variable name is empty then we return it as is
-                if let Some(expanded_str) = self._extract_str("$#[_EMPTY_", "_]",&expanded_string) {
+                if let Some(expanded_str) = self._extract_str("$#[_EMPTY_", "_]", &expanded_string)
+                {
                     return Ok(expanded_str);
                 }
             }

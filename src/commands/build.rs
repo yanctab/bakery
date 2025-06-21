@@ -10,7 +10,7 @@ use crate::data::context::{
 use crate::data::WsContextData;
 use crate::error::BError;
 use crate::executers::Docker;
-use crate::workspace::{Workspace, WsTaskHandler, Mode};
+use crate::workspace::{Mode, Workspace, WsTaskHandler};
 
 static BCOMMAND: &str = "build";
 static BCOMMAND_ABOUT: &str =

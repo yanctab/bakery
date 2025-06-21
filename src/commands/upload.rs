@@ -4,8 +4,8 @@ use crate::cli::Cli;
 use crate::commands::{BBaseCommand, BCommand, BError};
 use crate::data::WsContextData;
 use crate::executers::Docker;
-use crate::workspace::{Workspace, Mode};
 use crate::workspace::WsCustomSubCmdHandler;
+use crate::workspace::{Mode, Workspace};
 
 static BCOMMAND: &str = "upload";
 static BCOMMAND_ABOUT: &str = "Upload artifacts to the Artifactory server.";

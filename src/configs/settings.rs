@@ -46,11 +46,7 @@ impl WsSettings {
     pub fn from_str(json_string: &str) -> Result<Self, BError> {
         let data: Value = Self::parse(json_string)?;
         let version: String = Self::get_str_value("version", &data, None)?;
-        let mode: String = Self::get_str_value(
-            "mode",
-            &data,
-            Some(String::from("default")),
-        )?;
+        let mode: String = Self::get_str_value("mode", &data, Some(String::from("default")))?;
         let mut configs_dir: String = String::from("configs");
         let mut include_dir: String = String::from("configs/include");
         let mut builds_dir: String = String::from("builds");

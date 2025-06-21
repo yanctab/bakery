@@ -133,10 +133,10 @@ impl WsConfigFileHandler {
         }
 
         /*
-         * We expand this because it is the first time both the build configuration 
-         * and the settings are loaded. The build configuration requires the settings 
-         * to determine where to load the configuration from, while the settings may 
-         * depend on context variables defined in the build configuration. 
+         * We expand this because it is the first time both the build configuration
+         * and the settings are loaded. The build configuration requires the settings
+         * to determine where to load the configuration from, while the settings may
+         * depend on context variables defined in the build configuration.
          * This creates a circular dependency, which is not ideal.
          */
         main_config.expand_ctx()?;
@@ -582,7 +582,10 @@ mod tests {
          * not empty. Any build config context variable would be empty at this stage
          * so the $#[BKRY_NAME] should not have been expanded at this point.
          */
-        assert_eq!(settings.artifacts_dir(), work_dir.join("artifacts/$#[BKRY_NAME]"));
+        assert_eq!(
+            settings.artifacts_dir(),
+            work_dir.join("artifacts/$#[BKRY_NAME]")
+        );
         assert_eq!(settings.include_dir(), PathBuf::from("/etc/bakery/include"));
         assert_eq!(settings.scripts_dir(), PathBuf::from("/opt/bakery/scripts"));
         let build_conf_configs_dir = r#"
@@ -603,10 +606,22 @@ mod tests {
          * Calling build_config should have expanded the settings available in the
          * build data.
          */
-        assert_eq!(config.build_data().context().get_ctx_value("BKRY_NAME"), "ws-configs-build-config");
+        assert_eq!(
+            config.build_data().context().get_ctx_value("BKRY_NAME"),
+            "ws-configs-build-config"
+        );
         assert_eq!(config.build_data().name(), "ws-configs-build-config");
-        assert_eq!(config.build_data().settings().artifacts_dir(), work_dir.join("artifacts/ws-configs-build-config"));
-        assert_eq!(config.build_data().settings().include_dir(), PathBuf::from("/etc/bakery/include"));
-        assert_eq!(config.build_data().settings().scripts_dir(), PathBuf::from("/opt/bakery/scripts"));
+        assert_eq!(
+            config.build_data().settings().artifacts_dir(),
+            work_dir.join("artifacts/ws-configs-build-config")
+        );
+        assert_eq!(
+            config.build_data().settings().include_dir(),
+            PathBuf::from("/etc/bakery/include")
+        );
+        assert_eq!(
+            config.build_data().settings().scripts_dir(),
+            PathBuf::from("/opt/bakery/scripts")
+        );
     }
 }

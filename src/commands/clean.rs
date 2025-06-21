@@ -6,7 +6,7 @@ use crate::commands::{BBaseCommand, BCommand};
 use crate::data::WsContextData;
 use crate::error::BError;
 use crate::executers::Docker;
-use crate::workspace::{Workspace, WsTaskHandler, Mode};
+use crate::workspace::{Mode, Workspace, WsTaskHandler};
 
 static BCOMMAND: &str = "clean";
 static BCOMMAND_ABOUT: &str = "Clean one or all tasks defined in a build config.";

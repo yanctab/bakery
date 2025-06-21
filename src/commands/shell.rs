@@ -6,7 +6,7 @@ use crate::cli::Cli;
 use crate::commands::{BBaseCommand, BCommand, BError};
 use crate::data::{WsContextData, CTX_KEY_EYECANDY};
 use crate::executers::{Docker, DockerImage};
-use crate::workspace::{Workspace, Mode};
+use crate::workspace::{Mode, Workspace};
 
 static BCOMMAND: &str = "shell";
 static BCOMMAND_ABOUT: &str =

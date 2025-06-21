@@ -3,7 +3,7 @@ use indexmap::{indexmap, IndexMap};
 use crate::cli::Cli;
 use crate::commands::{BBaseCommand, BCommand, BError};
 use crate::data::{WsContextData, CTX_KEY_DEVICE, CTX_KEY_IMAGE};
-use crate::workspace::{Workspace, WsCustomSubCmdHandler, Mode};
+use crate::workspace::{Mode, Workspace, WsCustomSubCmdHandler};
 
 static BCOMMAND: &str = "deploy";
 static BCOMMAND_ABOUT: &str = "Deploy artifacts to the target.";

@@ -3,8 +3,8 @@ use crate::commands::BCommand;
 use crate::configs::WsConfigFileHandler;
 use crate::error::BError;
 use crate::executers::Docker;
-use crate::workspace::{Workspace, WsBuildConfigHandler, WsSettingsHandler, Mode};
 use crate::global::TestMode;
+use crate::workspace::{Mode, Workspace, WsBuildConfigHandler, WsSettingsHandler};
 
 use clap::Command;
 use std::path::PathBuf;
@@ -106,8 +106,7 @@ impl Bakery {
          * the current directory (.), the user config directory (~/.bakery), or the system config directory (/etc/bakery).
          * If no 'workspace.json' is found in any of these locations, exit with an "invalid workspace" error.
          */
-        self.cli
-            .debug("Verify Workspace".to_string());
+        self.cli.debug("Verify Workspace".to_string());
         self.unwrap_or_exit::<()>(cmd_name, cmd_require_docker, cfg_handler.verify_ws());
 
         let cmd_result: Result<&Box<dyn BCommand>, BError> = self.cli.get_command(cmd_name);
@@ -161,7 +160,8 @@ impl Bakery {
                     ),
                 );
 
-                self.cli.debug(format!("Mode: {:?}", workspace.settings().mode()));
+                self.cli
+                    .debug(format!("Mode: {:?}", workspace.settings().mode()));
 
                 if workspace.settings().mode() == Mode::TEST {
                     self.cli.debug("Enter Test mode".to_string());
