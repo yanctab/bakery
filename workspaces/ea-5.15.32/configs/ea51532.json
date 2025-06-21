@@ -1,0 +1,22 @@
+{
+	"version": "6",
+	"name": "ea51532",
+	"description": "Embedded Artists 5.15.32 release supporting imx6, imx7 and imx8mqea",
+	"context": [
+		"EA_REPO_URL=https://github.com/embeddedartists/ea-yocto-base",
+		"EA_BRANCH=ea-5.15.32",
+		"BKRY_JOBS=16"
+	],
+	"setup": {
+		"cmd": "$#[BKRY_SCRIPTS_DIR]/do_setup.sh --name ea51532 --url $#[EA_REPO_URL] --branch $#[EA_BRANCH] --jobs $#[BKRY_JOBS]"
+	},
+	"sync": {
+		"cmd": "echo \"INFO: currently not supported!\""
+	},
+	"deploy": {
+		"cmd": "echo \"INFO: currently not supported!\""
+	},
+	"upload": {
+		"cmd": "echo \"INFO: currently not supported!\""
+	}
+}

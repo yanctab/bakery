@@ -120,8 +120,12 @@ if ! shopt -oq posix; then
 fi
 
 update_ps1() {
-  if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    export BKRY_BRANCH=$(git branch --show-current 2>/dev/null)
+  if [ -d ${BKRY_WORK_DIR}/.git ]; then
+    if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        export BKRY_BRANCH=$(git branch --show-current 2>/dev/null)
+    fi
+  else
+    BKRY_BRANCH="NA"
   fi
 
   if [ -n "${BKRY_BRANCH}" ]; then

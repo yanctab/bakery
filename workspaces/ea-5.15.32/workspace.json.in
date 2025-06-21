@@ -1,0 +1,34 @@
+{
+	"version": "6",
+	"name": "ea51532",
+	"mode": "test",
+	"builds": {
+		"supported": [
+			"ea51532",
+			"imx6dlea-com",
+			"imx6qea-com",
+			"imx6sxea-com",
+			"im6ulea-com",
+			"imx7dea-com",
+			"imx7dea-ucom",
+			"imx7ulpea-ucom",
+			"imx8mqea-com"
+		]
+	},
+	"workspace": {
+		"layersdir": "sources",
+		"configsdir": "ea-5.15.32/configs",
+		"includedir": "ea-5.15.32/configs/include",
+		"scriptsdir": "ea-5.15.32/scripts",
+		"artifactsdir": "artifacts/$#[BKRY_NAME]"
+	},
+	"docker": {
+		"image": "bakery-workspace",
+		"registry": "ghcr.io/yanctab/bakery",
+		"tag": "1.1.13",
+		"args": [
+			"-v ${HOME}:${HOME}",
+			"-v /opt/bakery:/opt/bakery:ro"
+		]
+    }
+}

@@ -1,0 +1,115 @@
+{
+	"version": "6",
+	"name": "imx8mmea-ucom",
+	"description": "Embedded Artists iMX8M Mini uCOM Board / Kit, Wayland and ea-image-base",
+	"arch": "imx8mmea",
+	"context": [
+		"LOCAL_SOURCE_MIRROR_DIR=$#[BKRY_WORK_DIR]/.downloads",
+		"EA_IMAGE=ea-image-base",
+		"EA_REPO_URL=https://github.com/embeddedartists/ea-yocto-base",
+		"EA_BRANCH=ea-6.12.3",
+		"BKRY_JOBS=16"
+	],
+	"bb": {
+		"machine": "$#[BKRY_NAME]",
+		"variant": "release",
+		"distro": "fsl-imx-wayland",
+		"initenv": "sources/poky/oe-init-build-env",
+		"bblayersconf": [
+			"LCONF_VERSION = \"7\"",
+			"BBPATH = \"${TOPDIR}\"",
+			"BBFILES ?= \"\"",
+			"BBLAYERS = \" \\",
+			"   $#[BKRY_LAYERS_DIR]/poky/meta \\",
+			"   $#[BKRY_LAYERS_DIR]/poky/meta-poky \\",
+			"   $#[BKRY_LAYERS_DIR]/meta-openembedded/meta-oe \\",
+			"   $#[BKRY_LAYERS_DIR]/meta-openembedded/meta-python \\",
+			"   $#[BKRY_LAYERS_DIR]/meta-openembedded/meta-multimedia \\",
+			"   $#[BKRY_LAYERS_DIR]/meta-openembedded/meta-networking \\",
+			"   $#[BKRY_LAYERS_DIR]/meta-openembedded/meta-filesystems \\",
+			"   $#[BKRY_LAYERS_DIR]/meta-openembedded/meta-gnome \\",
+			"   $#[BKRY_LAYERS_DIR]/meta-freescale \\",
+			"   $#[BKRY_LAYERS_DIR]/meta-freescale-3rdparty \\",
+			"   $#[BKRY_LAYERS_DIR]/meta-freescale-distro \\",
+			"   $#[BKRY_LAYERS_DIR]/meta-browser/meta-chromium \\",
+			"   $#[BKRY_LAYERS_DIR]/meta-clang \\",
+			"   $#[BKRY_LAYERS_DIR]/meta-swupdate \\",
+			"   $#[BKRY_LAYERS_DIR]/meta-arm/meta-arm \\",
+			"   $#[BKRY_LAYERS_DIR]/meta-arm/meta-arm-toolchain \\",
+			"   $#[BKRY_LAYERS_DIR]/meta-imx/meta-imx-bsp \\",
+			"   $#[BKRY_LAYERS_DIR]/meta-imx/meta-imx-sdk \\",
+			"   $#[BKRY_LAYERS_DIR]/meta-imx/meta-imx-ml \\",
+			"   $#[BKRY_LAYERS_DIR]/meta-imx/meta-imx-v2x \\",
+			"   $#[BKRY_LAYERS_DIR]/meta-nxp-demo-experience \\",
+			"   $#[BKRY_LAYERS_DIR]/meta-nxp-connectivity/meta-nxp-matter-baseline \\",
+			"   $#[BKRY_LAYERS_DIR]/meta-nxp-connectivity/meta-nxp-openthread \\",
+			"   $#[BKRY_LAYERS_DIR]/meta-variscite-bsp-imx \\",
+			"   $#[BKRY_LAYERS_DIR]/meta-variscite-bsp-common \\",
+			"   $#[BKRY_LAYERS_DIR]/meta-variscite-sdk-imx \\",
+			"   $#[BKRY_LAYERS_DIR]/meta-variscite-sdk-common \\",
+			"   $#[BKRY_LAYERS_DIR]/meta-variscite-hab \\",
+			"   $#[BKRY_LAYERS_DIR]/meta-security/meta-parsec \\",
+			"   $#[BKRY_LAYERS_DIR]/meta-security/meta-tpm \\",
+			"   $#[BKRY_LAYERS_DIR]/meta-virtualization \\",
+			"   $#[BKRY_LAYERS_DIR]/meta-qt6 \\",
+			"\""
+		],
+		"localconf": [
+			"PACKAGE_CLASSES ?= 'package_rpm'",
+			"USER_CLASSES ?= \"buildstats\"",
+			"PATCHRESOLVE = \"noop\"",
+			"BB_DISKMON_DIRS ??= \" \\",
+			"   STOPTASKS,${TMPDIR},1G,100K \\ ",
+			"   STOPTASKS,${DL_DIR},1G,100K \\ ",
+			"   STOPTASKS,${SSTATE_DIR},1G,100K \\ ",
+			"   STOPTASKS,/tmp,100M,100K \\ ",
+			"   HALT,${TMPDIR},100M,1K \\ ",
+			"   HALT,${DL_DIR},100M,1K \\ ",
+			"   HALT,${SSTATE_DIR},100M,1K \\ ",
+			"   HALT,/tmp,10M,1K \"",
+			"PACKAGECONFIG:append:pn-qemu-system-native = \" sdl\"",
+			"ACCEPT_FSL_EULA = \"1\"",
+			"CONF_VERSION = \"2\"",
+			"BB_SIGNATURE_HANDLER = \"OEEquivHash\"",
+			"BB_HASHSERVE = \"auto\"",
+			"SOURCE_MIRROR_URL ?= \"file://$#[LOCAL_SOURCE_MIRROR_DIR]\"",
+			"INHERIT += \"own-mirrors\"",
+			"MACHINE_ESSENTIAL_EXTRA_RRECOMMENDS += \"kernel-modules\""
+		]
+	},
+	"tasks": {
+		"image": {
+			"index": "0",
+			"name": "image",
+			"description": "Build an image with framebuffer support 'bitbake $#[EA_IMAGE]'",
+			"recipes": [
+				"$#[EA_IMAGE]"
+			],
+			"artifacts": [
+			]
+		},
+		"sdk": {
+			"index": "4",
+			"name": "sdk",
+			"description": "Build the sdk running 'bitbake $#[EA_IMAGE] -c do_populate_sdk'",
+			"disabled": "true",
+			"recipes": [
+				"$#[EA_IMAGE]:sdk"
+			],
+			"artifacts": [
+			]
+		}
+	},
+	"setup": {
+		"cmd": "repo init -u $#[EA_REPO_URL] -b $#[EA_BRANCH]"
+	},
+	"sync": {
+		"cmd": "repo sync -j $#[BKRY_JOBS]"
+	},
+	"deploy": {
+		"cmd": "echo \"INFO: currently not supported!\""
+	},
+	"upload": {
+		"cmd": "echo \"INFO: currently not supported!\""
+	}
+}

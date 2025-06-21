@@ -1,0 +1,24 @@
+{
+    "version": "6",
+    "mode": "setup",
+	"builds": {
+		"supported": [
+			"ea6123",
+		]
+	},
+    "workspace": {
+		"layersdir": "sources",
+		"configsdir": "/etc/bakery/bundles/ea-6.12.3",
+		"scriptsdir": "/opt/bakery/scripts",
+		"artifactsdir": "artifacts/$#[BKRY_NAME]"
+    },
+    "docker": {
+		"image": "bakery-workspace",
+		"registry": "ghcr.io/yanctab/bakery",
+		"tag": "1.1.13",
+		"args": [
+			"-v ${HOME}:${HOME}",
+			"-v /opt/bakery:/opt/bakery:ro"
+		]
+    }
+}

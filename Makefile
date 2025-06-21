@@ -46,13 +46,18 @@ install:
 
 ## install-deb        - Update the current deb bakery package by building a release, create a deb package and install it on the system
 .PHONY: install-deb
-install-deb: build-release deb-package
+install-deb: build-release package
 	sudo dpkg -i artifacts/bakery.deb
 
-## deb-package        - Create a debian package from the latest release build either using glibc or using musl
-.PHONY: deb-package
-deb-package: build-release
-	./scripts/do_deb_package.sh $(VARIANT)
+## package            - Create a debian package from the latest release build either using glibc or using musl
+.PHONY: package
+package: build-release
+	./scripts/do_package.sh $(VARIANT)
+
+## ws-packages            - Create debian packages for the predefined bakery workspaces supported
+.PHONY: ws-packages
+ws-packages:
+	./scripts/do_ws_package.sh --name ea-5.15.32
 
 ## inc-version        - Increment minor version
 .PHONY: inc-version
@@ -79,7 +84,7 @@ docker-shell:
 .PHONY: release
 release: clean inc-version
 	./scripts/do_build_release.sh $(VARIANT)
-	./scripts/do_deb_package.sh $(VARIANT)
+	./scripts/do_package.sh $(VARIANT)
 	./scripts/do_release.sh
 	git push
 	git push --tags

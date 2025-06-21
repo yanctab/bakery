@@ -1,0 +1,24 @@
+{
+    "version": "6",
+	"image": {
+	    "index": "0",
+		"name": "image",
+		"description": "Build an image with framebuffer support 'bitbake $#[EA_IMAGE]'",
+		"recipes": [
+			"$#[EA_IMAGE]"
+		],
+		"artifacts": [
+		]
+	},
+	"sdk": {
+		"index": "1",
+		"name": "sdk",
+		"description": "Build the sdk running 'bitbake $#[EA_IMAGE] -c do_populate_sdk'",
+		"disabled": "true",
+		"recipes": [
+			"$#[EA_IMAGE]:sdk"
+		],
+		"artifacts": [
+		]
+	}
+}

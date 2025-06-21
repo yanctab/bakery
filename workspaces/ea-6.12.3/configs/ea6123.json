@@ -1,0 +1,25 @@
+{
+	"version": "6",
+	"name": "ea6123",
+	"description": "Embedded Artists 6.13.3 release supporting imx8mmea-ucom, imx8mnea-ucom and imx93ea-ucom",
+	"arch": "",
+	"context": [
+		"LOCAL_SOURCE_MIRROR_DIR=$#[BKRY_WORK_DIR]/.downloads",
+		"EA_IMAGE=ea-image-base",
+		"EA_REPO_URL=https://github.com/embeddedartists/ea-yocto-base",
+		"EA_BRANCH=ea-6.13.3",
+		"BKRY_JOBS=16"
+	],
+	"setup": {
+		"cmd": "repo init -u $#[EA_REPO_URL] -b $#[EA_BRANCH] && repo sync -j$#[BKRY_JOBS]"
+	},
+	"sync": {
+		"cmd": "echo \"INFO: currently not supported!\""
+	},
+	"deploy": {
+		"cmd": "echo \"INFO: currently not supported!\""
+	},
+	"upload": {
+		"cmd": "echo \"INFO: currently not supported!\""
+	}
+}
