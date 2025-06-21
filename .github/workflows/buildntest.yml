@@ -20,6 +20,12 @@ jobs:
     - name: Setup build env
       run: make setup-rust
     
+    - name: Check code format
+      run: |
+        make format
+        git diff
+        git diff --quiet
+    
     - name: Build musl x86_64
       run:  cargo build --target x86_64-unknown-linux-musl --release
     

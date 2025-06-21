@@ -34,6 +34,9 @@ rustup --version
 cargo --version
 rustc --version
 
+echo "INFO: install cargo-fmt"
+rustup component add rustfmt
+
 echo "INFO: Setup musl"
 rustup target add x86_64-unknown-linux-musl
 sudo apt install musl musl-tools musl-dev
