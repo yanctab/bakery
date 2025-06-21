@@ -379,7 +379,8 @@ mod tests {
                 ]
             },
             "workspace": {
-                "artifactsdir": "artifacts/$#[BKRY_NAME]"
+                "artifactsdir": "artifacts/$#[BKRY_BUILD_CONFIG]",
+                "configsdir": "configs/$#[BKRY_PRODUCT_NAME]"
             }
         }"#;
         let json_build_config: &str = r#"
@@ -395,6 +396,10 @@ mod tests {
         assert_eq!(
             ws.settings().artifacts_dir(),
             PathBuf::from("/test_work_dir/artifacts/test-name")
+        );
+        assert_eq!(
+            ws.settings().configs_dir(),
+            PathBuf::from("/test_work_dir/configs/test-name")
         );
     }
 

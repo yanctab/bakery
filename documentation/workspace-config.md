@@ -191,6 +191,29 @@ A customized docker image can be selected
     }
 ```
 
+## Context
+
+Context variables can be utilized in the workspace settings, but there are some restrictions. Built-in context variables with predefined values are permitted in the workspace settings. For a complete list of these variables, please refer to the [default context variables](https://github.com/yanctab/bakery/blob/main/src/data/context.rs#L149). Any variable with a value that is not an empty string can be used. The current list includes:
+
+```
+BKRY_HOME_CFG_DIR
+BKRY_CFG_DIR
+BKRY_BIN_DIR
+BKRY_OPT_DIR
+BKRY_OPT_SCRIPTS_DIR
+```
+
+Bakery requires the following structure to parse the build configurations:
+
+```json
+"workspace": {
+    "configsdir": "",
+    "includedir": ""
+},
+```
+
+No other built-in context variables, aside from those listed above, can be used for these two workspace directory settings. Once the build configuration has been parsed, all context variables become available for use in the workspace settings.
+
 ## Setup Workspace
 
 Bakery is a tool for setting up the content of the workspace. There are normally two ways of setting up a workspace

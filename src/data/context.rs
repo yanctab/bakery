@@ -174,7 +174,7 @@ impl WsContextData {
             CTX_KEY_DATE.to_string() => "".to_string(),
             CTX_KEY_BRANCH.to_string() => "NA".to_string(),
             CTX_KEY_RESET.to_string() => "false".to_string(),
-            CTX_KEY_CONFIG.to_string() => "NA".to_string(),
+            CTX_KEY_CONFIG.to_string() => "".to_string(),
             CTX_KEY_EYECANDY.to_string() => "false".to_string(),
             CTX_KEY_WORK_DIR.to_string() => "".to_string(),
             CTX_KEY_WORKSPACE_DIR.to_string() => "".to_string(),
@@ -297,7 +297,7 @@ mod tests {
         assert!(data.get_ctx_value(CTX_KEY_DEBUG_SYMBOLS).is_empty());
         assert_eq!(data.get_ctx_value(CTX_KEY_BRANCH), String::from("NA"));
         assert_eq!(data.get_ctx_value(CTX_KEY_RESET), String::from("false"));
-        assert_eq!(data.get_ctx_value(CTX_KEY_CONFIG), String::from("NA"));
+        assert_eq!(data.get_ctx_value(CTX_KEY_CONFIG), String::from(""));
         assert_eq!(data.get_ctx_value(CTX_KEY_EYECANDY), String::from("false"));
         assert_eq!(
             data.get_ctx_value(CTX_KEY_HOME_CFG_DIR),

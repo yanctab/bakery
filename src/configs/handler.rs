@@ -132,6 +132,15 @@ impl WsConfigFileHandler {
             main_config.merge(&mut cfg);
         }
 
+        /*
+         * We expand this because it is the first time both the build configuration 
+         * and the settings are loaded. The build configuration requires the settings 
+         * to determine where to load the configuration from, while the settings may 
+         * depend on context variables defined in the build configuration. 
+         * This creates a circular dependency, which is not ideal.
+         */
+        main_config.expand_ctx()?;
+
         return Ok(main_config);
     }
 
@@ -180,8 +189,6 @@ impl WsConfigFileHandler {
 #[cfg(test)]
 mod tests {
     use indexmap::IndexMap;
-    use std::fs::File;
-    use std::io::Write;
     use std::path::PathBuf;
     use tempdir::TempDir;
 
@@ -329,11 +336,11 @@ mod tests {
             TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
         let work_dir: PathBuf = PathBuf::from(temp_dir.path()).join("workspace");
         let home_dir: PathBuf = PathBuf::from(temp_dir.path()).join("home");
+        Helper::setup_test_ws_default_dirs(&work_dir);
         let cfg_handler: WsConfigFileHandler = WsConfigFileHandler::new(&work_dir, &home_dir);
         let settings: WsSettingsHandler = cfg_handler
             .ws_settings()
             .expect("Failed parse workspace settings");
-        Helper::setup_test_ws_default_dirs(&work_dir);
         let build_conf_ws_root_dir = r#"
         {
             "version": "6",
@@ -371,11 +378,11 @@ mod tests {
             TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
         let work_dir: PathBuf = PathBuf::from(temp_dir.path()).join("workspace");
         let home_dir: PathBuf = PathBuf::from(temp_dir.path()).join("home");
+        Helper::setup_test_ws_default_dirs(&work_dir);
         let cfg_handler: WsConfigFileHandler = WsConfigFileHandler::new(&work_dir, &home_dir);
         let settings: WsSettingsHandler = cfg_handler
             .ws_settings()
             .expect("Failed parse workspace settings");
-        Helper::setup_test_ws_default_dirs(&work_dir);
         let build_conf_configs_dir = r#"
         {
             "version": "6",
@@ -399,11 +406,11 @@ mod tests {
             TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
         let work_dir: PathBuf = PathBuf::from(temp_dir.path()).join("workspace");
         let home_dir: PathBuf = PathBuf::from(temp_dir.path()).join("home");
+        Helper::setup_test_ws_default_dirs(&work_dir);
         let cfg_handler: WsConfigFileHandler = WsConfigFileHandler::new(&work_dir, &home_dir);
         let settings: WsSettingsHandler = cfg_handler
             .ws_settings()
             .expect("Failed parse workspace settings");
-        Helper::setup_test_ws_default_dirs(&work_dir);
         let main_build_config = r#"
         {
             "version": "6",
@@ -540,5 +547,66 @@ mod tests {
         assert_eq!(sync.data().cmd(), "config1");
         let upload: &WsCustomSubCmdHandler = config.subcmds().get("upload").unwrap();
         assert_eq!(upload.data().cmd(), "config2");
+    }
+
+    #[test]
+    fn test_cfg_handler_ws_configs_using_build_config_ctx() {
+        let temp_dir: TempDir =
+            TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
+        let work_dir: PathBuf = PathBuf::from(temp_dir.path()).join("workspace");
+        let home_dir: PathBuf = PathBuf::from(temp_dir.path()).join("home");
+        Helper::setup_test_ws_default_dirs(&work_dir);
+        /*
+         * The context variable $#[BKRY_NAME] is comming from the build config and the
+         * config handler needs the worspace settings to be able to locate the build
+         * config. Bakery should parse the workspace setting and expand default context
+         * variables and leave any build config variables that are not available and should
+         * be expanded in a second expand context call.
+         */
+        let ws_settings: &str = r#"
+        {
+            "version": "5",
+            "workspace": {
+                "artifactsdir": "artifacts/$#[BKRY_NAME]",
+                "includedir": "$#[BKRY_CFG_DIR]/include",
+                "scriptsdir": "$#[BKRY_OPT_SCRIPTS_DIR]"
+            }
+        }"#;
+        Helper::write_json_conf(&work_dir.join("workspace.json"), ws_settings);
+        let cfg_handler: WsConfigFileHandler = WsConfigFileHandler::new(&work_dir, &home_dir);
+        let settings: WsSettingsHandler = cfg_handler
+            .ws_settings()
+            .expect("Failed parse workspace settings");
+        /*
+         * Calling ws_settings() should have expanded any context variable that was
+         * not empty. Any build config context variable would be empty at this stage
+         * so the $#[BKRY_NAME] should not have been expanded at this point.
+         */
+        assert_eq!(settings.artifacts_dir(), work_dir.join("artifacts/$#[BKRY_NAME]"));
+        assert_eq!(settings.include_dir(), PathBuf::from("/etc/bakery/include"));
+        assert_eq!(settings.scripts_dir(), PathBuf::from("/opt/bakery/scripts"));
+        let build_conf_configs_dir = r#"
+        {
+            "version": "6",
+            "name": "ws-configs-build-config",
+            "description": "Test Description",
+            "arch": "test-arch"
+        }"#;
+        Helper::write_json_conf(
+            &settings.configs_dir().join("test.json"),
+            build_conf_configs_dir,
+        );
+        let config: WsBuildConfigHandler = cfg_handler
+            .build_config("test", &settings)
+            .expect("Failed parse build config");
+        /*
+         * Calling build_config should have expanded the settings available in the
+         * build data.
+         */
+        assert_eq!(config.build_data().context().get_ctx_value("BKRY_NAME"), "ws-configs-build-config");
+        assert_eq!(config.build_data().name(), "ws-configs-build-config");
+        assert_eq!(config.build_data().settings().artifacts_dir(), work_dir.join("artifacts/ws-configs-build-config"));
+        assert_eq!(config.build_data().settings().include_dir(), PathBuf::from("/etc/bakery/include"));
+        assert_eq!(config.build_data().settings().scripts_dir(), PathBuf::from("/opt/bakery/scripts"));
     }
 }

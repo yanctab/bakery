@@ -481,4 +481,47 @@ mod tests {
             "test-registry-var3/test-image-var4:test2"
         );
     }
+
+    #[test]
+    fn test_settings_empty_context() {
+        let json_test_str = r#"
+        {
+            "version": "5",
+            "workspace": {
+                "configsdir": "configs_$#[VAR1]",
+                "includedir": "include_test",
+                "artifactsdir": "artifacts_$#[VAR2]",
+                "buildsdir": "builds_test",
+                "scriptsdir": "scripts_$#[VAR3]",
+                "dockerdir": "docker_test",
+                "cachedir": "cache_$#[VAR4]"
+            }
+        }"#;
+        let work_dir: PathBuf = PathBuf::from("/workspace");
+        let mut settings: WsSettingsHandler = WsSettingsHandler::new(
+            work_dir.clone(),
+            Helper::setup_ws_settings(json_test_str),
+            None,
+        );
+        let variables1: IndexMap<String, String> = indexmap! {
+            "VAR1".to_string() => "var1".to_string(),
+            "VAR2".to_string() => "".to_string(),
+            "VAR3".to_string() => "var3".to_string(),
+            "VAR4".to_string() => "".to_string()
+        };
+        let ctx1: Context = Context::new(&variables1);
+        settings.expand_ctx(&ctx1).unwrap();
+        let variables2: IndexMap<String, String> = indexmap! {
+            "VAR1".to_string() => "".to_string(),
+            "VAR2".to_string() => "var2".to_string(),
+            "VAR3".to_string() => "".to_string(),
+            "VAR4".to_string() => "var4".to_string()
+        };
+        let ctx2: Context = Context::new(&variables2);
+        settings.expand_ctx(&ctx2).unwrap();
+        assert_eq!(settings.configs_dir(), work_dir.join("configs_var1"));
+        assert_eq!(settings.artifacts_dir(), work_dir.join("artifacts_var2"));
+        assert_eq!(settings.scripts_dir(), work_dir.join("scripts_var3"));
+        assert_eq!(settings.cache_dir(), work_dir.join("cache_var4"));
+    }
 }

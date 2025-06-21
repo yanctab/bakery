@@ -98,7 +98,7 @@ impl Bakery {
          */
         let mut cmd_require_docker: bool = false;
 
-        self.cli.debug("Setup Command Logger".to_string());
+        self.cli.debug("Setup configuration handler".to_string());
         let cfg_handler: WsConfigFileHandler = WsConfigFileHandler::new(&work_dir, &home_dir);
         let cmd_name: &str = self.cli.get_args().subcommand_name().unwrap();
         /*
@@ -107,7 +107,7 @@ impl Bakery {
          * If no 'workspace.json' is found in any of these locations, exit with an "invalid workspace" error.
          */
         self.cli
-            .debug("Verify that we have access to a workspace.json".to_string());
+            .debug("Verify Workspace".to_string());
         self.unwrap_or_exit::<()>(cmd_name, cmd_require_docker, cfg_handler.verify_ws());
 
         let cmd_result: Result<&Box<dyn BCommand>, BError> = self.cli.get_command(cmd_name);

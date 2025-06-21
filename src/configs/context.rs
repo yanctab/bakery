@@ -1,4 +1,4 @@
-use indexmap::{indexmap, IndexMap};
+use indexmap::{IndexMap, indexmap};
 use regex::Regex;
 use std::path::PathBuf;
 
@@ -35,14 +35,59 @@ impl Context {
     }
 
     fn __expand_str(&self, s: &str) -> String {
+        let mut na_error: bool = false;
+        let mut empty_error: bool = false;
+        let mut error_str: String = String::new();
+
         let replaced = self.regexp.replace_all(s, |caps: &regex::Captures| {
             let var_name = &caps[1].to_lowercase(); // Extract the variable name
             match self.variables.get(var_name) {
-                Some(value) => value.to_string(), // Replace with the value from the IndexMap
-                None => caps[0].to_string(),      // No replacement found, keep the original text
+                Some(value) => {
+                    if value.is_empty() {
+                        // If empty return 
+                        empty_error = true;
+                        caps[0].to_string()
+                    } else {
+                        // Replace with the value from the HashMap
+                        value.to_string()
+                    }
+                },
+                None => {
+                    /*
+                     * No context variable found return an error string
+                     * we return it in a context string format to avoid
+                     * mixing it with an actual value
+                     */
+                    na_error = true;
+                    error_str = format!("$#[_NA_{}_]", var_name.to_uppercase());
+                    caps[0].to_string()
+                },
             }
         });
+
+        if na_error {
+            return error_str;
+        }
+
+        if empty_error {
+            return format!("$#[_EMPTY_{}_]", replaced.to_string());
+        }
+
         replaced.to_string()
+    }
+
+    fn _extract_str(&self, prefix: &str, suffix: &str, error_string: &str) -> Option<String> {
+        // Check if the string matches the expected format
+        if error_string.starts_with(prefix) && error_string.ends_with(suffix) {
+            // Extract the part between the prefix and suffix
+            let start: usize = prefix.len();
+            let end: usize = error_string.len() - suffix.len();
+            let var_name: &str = &error_string[start..end];
+
+            return Some(var_name.to_string());
+        }
+
+        None
     }
 
     pub fn expand_str(&self, s: &str) -> Result<String, BError> {
@@ -50,13 +95,29 @@ impl Context {
         let mut expanded_string: String = s.to_string();
         while self.regexp.is_match(expanded_string.as_str()) {
             expanded_string = self.__expand_str(expanded_string.as_str());
+            // Check if the result is an error string
+            if expanded_string.starts_with("$#[_NA_") {
+                // Extract the variable name from the error string
+                if let Some(var_name) = self._extract_str("$#[_NA_", "_]",&expanded_string) {
+                    return Err(BError::CtxKeyError(format!(
+                        "Failed to expand context: no such variable '$#[{}]' in context",
+                        var_name
+                        )));
+                }
+            } else if expanded_string.starts_with("$#[_EMPTY_") {
+                // if the context variable name is empty then we return it as is
+                if let Some(expanded_str) = self._extract_str("$#[_EMPTY_", "_]",&expanded_string) {
+                    return Ok(expanded_str);
+                }
+            }
+
             if counter > 10 {
-                // TODO not sure we should panic. If we don't find a context should we panic then?
                 return Err(BError::CtxKeyError(format!(
                     "Failed to expand context in string '{}'",
                     expanded_string
                 )));
             }
+
             counter += 1;
         }
         Ok(expanded_string)
@@ -263,11 +324,26 @@ mod tests {
             Err(err_msg) => {
                 assert_eq!(
                     String::from(
-                        "Failed to expand context in string '/dir1/var1/$#[VAR2]/file1.txt'"
+                        "Failed to expand context: no such variable '$#[VAR2]' in context"
                     ),
                     err_msg.to_string()
                 );
             }
         }
+    }
+
+    #[test]
+    fn test_task_context_expand_empty() {
+        let variables: IndexMap<String, String> = indexmap! {
+            "VAR1".to_string() => "var1".to_string(),
+            "VAR2".to_string() => "".to_string(),
+            "VAR3".to_string() => "var3".to_string(),
+        };
+        let ctx: Context = Context::new(&variables);
+        let path: PathBuf = PathBuf::from("/dir1/$#[VAR1]/$#[VAR2]/$#[VAR3]/file1.txt");
+        assert_eq!(
+            ctx.expand_path(&path).unwrap(),
+            PathBuf::from("/dir1/var1/$#[VAR2]/var3/file1.txt")
+        );
     }
 }
