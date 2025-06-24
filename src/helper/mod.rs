@@ -340,6 +340,12 @@ impl Helper {
         }
     }
 
+    pub fn docker_pull_string(image: &DockerImage) -> Vec<String> {
+        let mut cmd_line: Vec<String> = vec![String::from("docker"), String::from("pull")];
+        cmd_line.push(format!("{}", image));
+        cmd_line
+    }
+
     pub fn docker_bootstrap_string(
         interactive: bool,
         args: &Vec<String>,

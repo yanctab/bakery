@@ -89,7 +89,7 @@ impl BCommand for BuildCommand {
          */
         if !workspace.settings().docker_disabled()
             && self.is_docker_required()
-            && !Docker::inside_docker()
+            && !cli.inside_docker()
         {
             return self.bootstrap(&cli.get_cmd_line(), cli, workspace, &volumes, interactive);
         }
@@ -778,12 +778,22 @@ mod tests {
         let temp_dir: TempDir =
             TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
         let work_dir: PathBuf = temp_dir.into_path();
-        let mut mocked_system: MockSystem = MockSystem::new();
         let docker_image: DockerImage = DockerImage::new(&format!(
             "ghcr.io/yanctab/bakery/bakery-workspace:{}",
             env!("CARGO_PKG_VERSION")
         ))
         .expect("Invalid docker image format");
+        let mut mocked_system: MockSystem = MockSystem::new();
+        mocked_system.expect_inside_docker().returning(|| false);
+        mocked_system
+            .expect_check_call()
+            .with(mockall::predicate::eq(CallParams {
+                cmd_line: Helper::docker_pull_string(&docker_image),
+                env: HashMap::new(),
+                shell: true,
+            }))
+            .once()
+            .returning(|_x| Ok(()));
         mocked_system
             .expect_check_call()
             .with(mockall::predicate::eq(CallParams {
@@ -858,6 +868,16 @@ mod tests {
         ))
         .expect("Invalid docker image format");
         let mut mocked_system: MockSystem = MockSystem::new();
+        mocked_system.expect_inside_docker().returning(|| false);
+        mocked_system
+            .expect_check_call()
+            .with(mockall::predicate::eq(CallParams {
+                cmd_line: Helper::docker_pull_string(&docker_image),
+                env: HashMap::new(),
+                shell: true,
+            }))
+            .once()
+            .returning(|_x| Ok(()));
         mocked_system
             .expect_check_call()
             .with(mockall::predicate::eq(CallParams {
@@ -941,6 +961,16 @@ mod tests {
         ))
         .expect("Invalid docker image format");
         let mut mocked_system: MockSystem = MockSystem::new();
+        mocked_system.expect_inside_docker().returning(|| false);
+        mocked_system
+            .expect_check_call()
+            .with(mockall::predicate::eq(CallParams {
+                cmd_line: Helper::docker_pull_string(&docker_image),
+                env: HashMap::new(),
+                shell: true,
+            }))
+            .once()
+            .returning(|_x| Ok(()));
         mocked_system
             .expect_check_call()
             .with(mockall::predicate::eq(CallParams {
@@ -1027,6 +1057,16 @@ mod tests {
         ))
         .expect("Invalid docker image format");
         let mut mocked_system: MockSystem = MockSystem::new();
+        mocked_system.expect_inside_docker().returning(|| false);
+        mocked_system
+            .expect_check_call()
+            .with(mockall::predicate::eq(CallParams {
+                cmd_line: Helper::docker_pull_string(&docker_image),
+                env: HashMap::new(),
+                shell: true,
+            }))
+            .once()
+            .returning(|_x| Ok(()));
         mocked_system
             .expect_check_call()
             .with(mockall::predicate::eq(CallParams {

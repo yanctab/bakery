@@ -95,6 +95,10 @@ impl Cli {
         self.system.env()
     }
 
+    pub fn inside_docker(&self) -> bool {
+        self.system.inside_docker()
+    }
+
     pub fn source_init_env(
         &self,
         init_file: &PathBuf,

@@ -69,7 +69,7 @@ impl BCommand for ShellCommand {
          */
         if !workspace.settings().docker_disabled()
             && self.is_docker_required()
-            && !Docker::inside_docker()
+            && !cli.inside_docker()
         {
             let mut cmd_line: Vec<String> = vec![String::from("bakery"), String::from("shell")];
 

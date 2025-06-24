@@ -65,7 +65,7 @@ impl BCommand for UploadCommand {
          */
         if !workspace.settings().docker_disabled()
             && self.is_docker_required()
-            && !Docker::inside_docker()
+            && !cli.inside_docker()
         {
             return self.bootstrap(
                 &cli.get_cmd_line(),

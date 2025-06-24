@@ -283,6 +283,10 @@ impl Docker {
         volumes: &Vec<String>,
         env: &HashMap<String, String>,
     ) -> Result<(), BError> {
+        if self.pull(cli).is_err() {
+            cli.debug(format!("Failed to pull the Docker image '{}'.", self.image));
+        }
+
         cli.check_call(
             &self.bootstrap_cmd_line(cmd_line, docker_top_dir, work_dir, docker_args, volumes),
             &env,

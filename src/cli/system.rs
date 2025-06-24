@@ -1,4 +1,5 @@
 use crate::error::BError;
+use crate::executers::Docker;
 use crate::global::TestMode;
 
 use mockall::*;
@@ -48,6 +49,7 @@ pub trait System {
     fn is_directory_empty(&self, path: &PathBuf) -> Result<bool, BError>;
     fn rmdir_all(&self, path: &PathBuf) -> Result<(), BError>;
     fn env(&self) -> HashMap<String, String>;
+    fn inside_docker(&self) -> bool;
 }
 
 pub struct BSystem {}
@@ -157,6 +159,10 @@ impl System for BSystem {
     fn rmdir_all(&self, path: &PathBuf) -> Result<(), BError> {
         std::fs::remove_dir_all(path)?;
         Ok(())
+    }
+
+    fn inside_docker(&self) -> bool {
+        Docker::inside_docker()
     }
 
     fn is_directory_empty(&self, path: &PathBuf) -> Result<bool, BError> {
