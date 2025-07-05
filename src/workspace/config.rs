@@ -2,6 +2,7 @@ use indexmap::IndexMap;
 use serde_json::Value;
 
 use crate::configs::Context;
+use crate::constants::BkryConstants;
 use crate::data::{WsBuildData, WsContextData};
 use crate::error::BError;
 use crate::fs::ConfigFileReader;
@@ -24,7 +25,7 @@ impl WsBuildConfigHandler {
         let tasks: IndexMap<String, WsTaskHandler> = build_data.get_tasks(data)?;
         let subcmds: IndexMap<String, WsCustomSubCmdHandler> = build_data.get_subcmds(data)?;
 
-        if build_data.version() != "6" {
+        if build_data.version() != BkryConstants::BUILD_CFG_VERSION {
             return Err(BError::InvalidBuildConfigError(
                 build_data.version().to_string(),
             ));
@@ -171,6 +172,7 @@ impl WsBuildConfigHandler {
 mod tests {
     use std::path::PathBuf;
 
+    use crate::constants::BkryConstants;
     use crate::error::BError;
     use crate::workspace::{
         WsBuildConfigHandler, WsCustomSubCmdHandler, WsSettingsHandler, WsTaskHandler,
@@ -195,7 +197,10 @@ mod tests {
         let ws_config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_build_config, &mut ws_settings)
                 .expect("Failed to parse build config");
-        assert_eq!(ws_config.build_data().version(), "6".to_string());
+        assert_eq!(
+            ws_config.build_data().version(),
+            BkryConstants::BUILD_CFG_VERSION.to_string()
+        );
         assert_eq!(ws_config.build_data().name(), "test-name".to_string());
         assert_eq!(
             ws_config.build_data().product().name(),

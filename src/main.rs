@@ -2,6 +2,7 @@ mod cli;
 mod collector;
 mod commands;
 mod configs;
+mod constants;
 mod data;
 mod error;
 mod executers;

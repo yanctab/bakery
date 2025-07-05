@@ -1,3 +1,4 @@
+use crate::constants::BkryConstants;
 use crate::data::WsBuildData;
 use crate::workspace::{Workspace, WsArtifactsHandler, WsBuildConfigHandler, WsSettingsHandler};
 
@@ -44,7 +45,7 @@ impl Helper {
         {
             "version": "5"
         }"#;
-        Helper::write_json_conf(&work_dir.join("workspace.json"), default_settings);
+        Helper::write_json_conf(&work_dir.join(BkryConstants::WS_SETTINGS), default_settings);
     }
 
     pub fn setup_test_ws_dirs(ws_settings: &WsSettingsHandler) {
@@ -378,9 +379,19 @@ impl Helper {
         }
         cmd_line.append(&mut vec![
             String::from("-v"),
-            String::from("/usr/bin/bakery:/usr/bin/bakery:ro"),
+            String::from(format!("{}:{}:ro", BkryConstants::BIN, BkryConstants::BIN)),
             String::from("-v"),
-            String::from("/etc/bakery:/etc/bakery:ro"),
+            String::from(format!(
+                "{}:{}:ro",
+                BkryConstants::CFG_DIR,
+                BkryConstants::CFG_DIR
+            )),
+            String::from("-v"),
+            String::from(format!(
+                "{}:{}:ro",
+                BkryConstants::OPT_DIR,
+                BkryConstants::OPT_DIR
+            )),
             String::from("-v"),
             String::from("/etc/passwd:/etc/passwd:ro"),
             String::from("-v"),

@@ -7,6 +7,7 @@ use tempdir::TempDir;
 use users::Groups;
 
 use crate::cli::Cli;
+use crate::constants::BkryConstants;
 use crate::error::BError;
 
 pub struct Docker {
@@ -100,13 +101,23 @@ impl Docker {
     fn bakery(&self) -> Vec<String> {
         vec![
             String::from("-v"),
-            String::from("/usr/bin/bakery:/usr/bin/bakery:ro"),
+            String::from(format!("{}:{}:ro", BkryConstants::BIN, BkryConstants::BIN)),
             String::from("-v"),
-            String::from("/etc/bakery:/etc/bakery:ro"),
+            String::from(format!(
+                "{}:{}:ro",
+                BkryConstants::CFG_DIR,
+                BkryConstants::CFG_DIR
+            )),
+            String::from("-v"),
+            String::from(format!(
+                "{}:{}:ro",
+                BkryConstants::OPT_DIR,
+                BkryConstants::OPT_DIR
+            )),
         ]
     }
 
-    fn hidden_home_files(&self) -> Vec<String> {
+    fn _hidden_home_files(&self) -> Vec<String> {
         vec![
             String::from("-v"),
             format!(

@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use crate::configs::Config;
 use crate::configs::Context;
+use crate::constants::BkryConstants;
 use crate::error::BError;
 
 pub struct WsContextData {
@@ -179,10 +180,10 @@ impl WsContextData {
             CTX_KEY_WORK_DIR.to_string() => "".to_string(),
             CTX_KEY_WORKSPACE_DIR.to_string() => "".to_string(),
             CTX_KEY_HOME_CFG_DIR.to_string() => format!("{}/.bakery", Self::_env_home()),
-            CTX_KEY_CFG_DIR.to_string() => "/etc/bakery".to_string(),
-            CTX_KEY_BIN_DIR.to_string() => "/usr/bin".to_string(),
-            CTX_KEY_OPT_DIR.to_string() => "/opt/bakery".to_string(),
-            CTX_KEY_OPT_SCRIPTS_DIR.to_string() => "/opt/bakery/scripts".to_string(),
+            CTX_KEY_CFG_DIR.to_string() => BkryConstants::CFG_DIR.to_string(),
+            CTX_KEY_BIN_DIR.to_string() => BkryConstants::BIN_DIR.to_string(),
+            CTX_KEY_OPT_DIR.to_string() => BkryConstants::OPT_DIR.to_string(),
+            CTX_KEY_OPT_SCRIPTS_DIR.to_string() => BkryConstants::OPT_SCRIPTS_DIR.to_string(),
         };
         let mut ctx: Context = Context::new(&ctx_default_variables);
         ctx.update(&variables);
@@ -240,6 +241,7 @@ mod tests {
     use indexmap::{indexmap, IndexMap};
     use std::path::PathBuf;
 
+    use crate::constants::BkryConstants;
     use crate::data::context::{
         CTX_KEY_ARCH, CTX_KEY_ARCHIVER, CTX_KEY_ARTIFACTS_DIR, CTX_KEY_BB_BUILD_DIR,
         CTX_KEY_BB_DEPLOY_DIR, CTX_KEY_BIN_DIR, CTX_KEY_BRANCH, CTX_KEY_BUILDS_DIR,
@@ -308,23 +310,19 @@ mod tests {
         );
         assert_eq!(
             data.get_ctx_value(CTX_KEY_CFG_DIR),
-            String::from("/etc/bakery")
+            String::from(BkryConstants::CFG_DIR)
         );
         assert_eq!(
             data.get_ctx_value(CTX_KEY_BIN_DIR),
-            String::from("/usr/bin")
+            String::from(BkryConstants::BIN_DIR)
         );
         assert_eq!(
             data.get_ctx_value(CTX_KEY_OPT_DIR),
-            String::from("/opt/bakery")
-        );
-        assert_eq!(
-            data.get_ctx_value(CTX_KEY_OPT_DIR),
-            String::from("/opt/bakery")
+            String::from(BkryConstants::OPT_DIR)
         );
         assert_eq!(
             data.get_ctx_value(CTX_KEY_OPT_SCRIPTS_DIR),
-            String::from("/opt/bakery/scripts")
+            String::from(BkryConstants::OPT_SCRIPTS_DIR)
         );
     }
 

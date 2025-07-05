@@ -1,12 +1,11 @@
 use indexmap::indexmap;
 use std::path::PathBuf;
 
+use crate::constants::BkryConstants;
 use crate::data::WsContextData;
 use crate::error::BError;
 use crate::fs::ConfigFileReader;
 use crate::workspace::{WsBuildConfigHandler, WsSettingsHandler};
-
-const WORKSPACE_SETTINGS: &str = "workspace.json";
 
 pub struct WsConfigFileHandler {
     work_dir: PathBuf,
@@ -29,7 +28,7 @@ impl WsConfigFileHandler {
 
     pub fn new(work_dir: &PathBuf, home_dir: &PathBuf) -> Self {
         let bkry_home_cfg_dir: PathBuf = home_dir.clone().join(".bakery");
-        let bkry_cfg_dir: PathBuf = PathBuf::from("/etc/bakery");
+        let bkry_cfg_dir: PathBuf = PathBuf::from(BkryConstants::CFG_DIR);
         WsConfigFileHandler {
             work_dir: work_dir.clone(),
             bkry_home_cfg_dir,
@@ -39,9 +38,9 @@ impl WsConfigFileHandler {
 
     pub fn ws_settings(&self) -> Result<WsSettingsHandler, BError> {
         let paths: Vec<PathBuf> = vec![
-            self.work_dir.join(WORKSPACE_SETTINGS),          // First
-            self.bkry_home_cfg_dir.join(WORKSPACE_SETTINGS), // Second
-            self.bkry_cfg_dir.join(WORKSPACE_SETTINGS),      // Third
+            self.work_dir.join(BkryConstants::WS_SETTINGS), // First
+            self.bkry_home_cfg_dir.join(BkryConstants::WS_SETTINGS), // Second
+            self.bkry_cfg_dir.join(BkryConstants::WS_SETTINGS), // Third
         ];
 
         /*
@@ -82,13 +81,21 @@ impl WsConfigFileHandler {
          *
          * If none of these contain 'workspace.json', return an invalid workspace error.
          */
-        if !self.work_dir.clone().join(WORKSPACE_SETTINGS).exists()
+        if !self
+            .work_dir
+            .clone()
+            .join(BkryConstants::WS_SETTINGS)
+            .exists()
             && !self
                 .bkry_home_cfg_dir
                 .clone()
-                .join(WORKSPACE_SETTINGS)
+                .join(BkryConstants::WS_SETTINGS)
                 .exists()
-            && !self.bkry_cfg_dir.clone().join(WORKSPACE_SETTINGS).exists()
+            && !self
+                .bkry_cfg_dir
+                .clone()
+                .join(BkryConstants::WS_SETTINGS)
+                .exists()
         {
             return Err(BError::InvalidWorkspaceError());
         }
@@ -193,6 +200,7 @@ mod tests {
     use tempdir::TempDir;
 
     use crate::configs::WsConfigFileHandler;
+    use crate::constants::BkryConstants;
     use crate::error::BError;
     use crate::helper::Helper;
     use crate::workspace::{
@@ -215,8 +223,9 @@ mod tests {
             "version": "5"
         }"#;
         let settings_path: PathBuf = PathBuf::from(format!(
-            "{}/workspace.json",
-            PathBuf::from(work_dir.clone()).display()
+            "{}/{}",
+            PathBuf::from(work_dir.clone()).display(),
+            BkryConstants::WS_SETTINGS
         ));
         let mut configs: IndexMap<PathBuf, String> = IndexMap::new();
         configs.insert(settings_path, settings_str.to_string());
@@ -254,7 +263,10 @@ mod tests {
                 "configsdir": "config1_dir"
             }
         }"#;
-        Helper::write_json_conf(&work_dir.clone().join("workspace.json"), ws_settings_1);
+        Helper::write_json_conf(
+            &work_dir.clone().join(BkryConstants::WS_SETTINGS),
+            ws_settings_1,
+        );
         let ws_settings_2: &str = r#"
         {
             "version": "6",
@@ -263,7 +275,9 @@ mod tests {
             }
         }"#;
         Helper::write_json_conf(
-            &home_dir.clone().join(".bakery/workspace.json"),
+            &home_dir
+                .clone()
+                .join(format!(".bakery/{}", BkryConstants::WS_SETTINGS)),
             ws_settings_2,
         );
         let cfg_handler: WsConfigFileHandler = WsConfigFileHandler::new(&work_dir, &home_dir);
@@ -290,7 +304,10 @@ mod tests {
                 "configsdir": "work_dir"
             }
         }"#;
-        Helper::write_json_conf(&work_dir.clone().join("workspace.json"), ws_settings);
+        Helper::write_json_conf(
+            &work_dir.clone().join(BkryConstants::WS_SETTINGS),
+            ws_settings,
+        );
         let cfg_handler: WsConfigFileHandler = WsConfigFileHandler::new(&work_dir, &home_dir);
         let settings: WsSettingsHandler = cfg_handler
             .ws_settings()
@@ -572,7 +589,7 @@ mod tests {
                 "scriptsdir": "$#[BKRY_OPT_SCRIPTS_DIR]"
             }
         }"#;
-        Helper::write_json_conf(&work_dir.join("workspace.json"), ws_settings);
+        Helper::write_json_conf(&work_dir.join(BkryConstants::WS_SETTINGS), ws_settings);
         let cfg_handler: WsConfigFileHandler = WsConfigFileHandler::new(&work_dir, &home_dir);
         let settings: WsSettingsHandler = cfg_handler
             .ws_settings()
@@ -586,8 +603,14 @@ mod tests {
             settings.artifacts_dir(),
             work_dir.join("artifacts/$#[BKRY_NAME]")
         );
-        assert_eq!(settings.include_dir(), PathBuf::from("/etc/bakery/include"));
-        assert_eq!(settings.scripts_dir(), PathBuf::from("/opt/bakery/scripts"));
+        assert_eq!(
+            settings.include_dir(),
+            PathBuf::from(format!("{}/include", BkryConstants::CFG_DIR))
+        );
+        assert_eq!(
+            settings.scripts_dir(),
+            PathBuf::from(BkryConstants::OPT_SCRIPTS_DIR)
+        );
         let build_conf_configs_dir = r#"
         {
             "version": "6",
@@ -617,11 +640,11 @@ mod tests {
         );
         assert_eq!(
             config.build_data().settings().include_dir(),
-            PathBuf::from("/etc/bakery/include")
+            PathBuf::from(format!("{}/include", BkryConstants::CFG_DIR))
         );
         assert_eq!(
             config.build_data().settings().scripts_dir(),
-            PathBuf::from("/opt/bakery/scripts")
+            PathBuf::from(BkryConstants::OPT_SCRIPTS_DIR)
         );
     }
 }

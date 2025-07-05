@@ -1,4 +1,5 @@
 use crate::configs::Context;
+use crate::constants::BkryConstants;
 use crate::error::BError;
 use crate::{configs::WsSettings, executers::DockerImage};
 
@@ -40,7 +41,8 @@ impl WsSettingsHandler {
             registry: settings.docker_registry.clone(),
         };
 
-        let ws_cfg_path: PathBuf = path.unwrap_or_else(|| work_dir.join("workspace.json"));
+        let ws_cfg_path: PathBuf =
+            path.unwrap_or_else(|| work_dir.join(BkryConstants::WS_SETTINGS));
 
         WsSettingsHandler {
             work_dir,
@@ -53,8 +55,10 @@ impl WsSettingsHandler {
     pub fn verify_ws_dir(&self, ws_dir: &str, dir: &Path) -> Result<(), BError> {
         if !dir.is_dir() || !dir.exists() {
             return Err(BError::WsError(format!(
-                "Invalid workspace.json: the directory specified for '{}' does not exist: {:?}",
-                ws_dir, dir
+                "Invalid {}: the directory specified for '{}' does not exist: {:?}",
+                BkryConstants::WS_SETTINGS,
+                ws_dir,
+                dir
             )));
         }
         return Ok(());
@@ -63,7 +67,8 @@ impl WsSettingsHandler {
     pub fn verify_ws(&self) -> Result<(), BError> {
         if !self.path().exists() || !self.path().is_file() {
             return Err(BError::WsError(format!(
-                "Invalid bakery workspace: 'workspace.json' file not found!"
+                "Invalid bakery workspace: '{}' file not found!",
+                BkryConstants::WS_SETTINGS
             )));
         }
         /*
