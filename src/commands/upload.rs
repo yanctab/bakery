@@ -42,9 +42,10 @@ impl BCommand for UploadCommand {
     fn execute(&self, cli: &Cli, workspace: &mut Workspace) -> Result<(), BError> {
         let config: String = self.get_arg_str(cli, "config", BCOMMAND)?;
         let ctx: Vec<String> = self.get_arg_many(cli, "ctx", BCOMMAND)?;
+        let interactive: bool = self.get_arg_bool(cli, "interactive", BCOMMAND)?;
+        let volumes: Vec<String> = self.get_arg_many(cli, "volume", BCOMMAND)?;
         let args_context: IndexMap<String, String> = self.setup_context(ctx);
         let context: WsContextData = WsContextData::new(&args_context)?;
-        let volumes: Vec<String> = self.get_arg_many(cli, "volume", BCOMMAND)?;
 
         if !workspace.valid_config(config.as_str()) {
             return Err(BError::CliError(format!(
@@ -58,22 +59,16 @@ impl BCommand for UploadCommand {
         }
 
         /*
-         * If docker is enabled in the workspace settings then bakery will be boottraped into a docker container
-         * with a bakery inside and all the baking will be done inside that docker container. Not all commands should
-         * be run inside of docker and if we are already inside docker we should not try and bootstrap into a
-         * second docker container.
+         * If Docker is enabled in the workspace settings, Bakery will be bootstrapped into
+         * a Docker container where all baking operations are performed.
+         * However, not all commands should run inside Docker, and if we're already inside
+         * a container, we must avoid bootstrapping into another one.
          */
         if !workspace.settings().docker_disabled()
             && self.is_docker_required()
             && !cli.inside_docker()
         {
-            return self.bootstrap(
-                &cli.get_cmd_line(),
-                cli,
-                workspace,
-                &volumes,
-                self.cmd.interactive,
-            );
+            return self.bootstrap(&cli.get_cmd_line(), cli, workspace, &volumes, interactive);
         }
 
         workspace.update_ctx(&context)?;
@@ -110,6 +105,15 @@ impl UploadCommand {
             .help("Set verbose level."),
       )
       .arg(
+        clap::Arg::new("interactive")
+            .short('i')
+            .long("interactive")
+            .value_name("interactive")
+            .default_value("true")
+            .value_parser(["true", "false"])
+            .help("Determines whether a build inside Docker should be interactive. This can be useful to set to false when running in CI environments."),
+      )
+      .arg(
         clap::Arg::new("ctx")
             .action(clap::ArgAction::Append)
             .short('x')
@@ -124,7 +128,7 @@ impl UploadCommand {
                 cmd_str: String::from(BCOMMAND),
                 sub_cmd: subcmd,
                 interactive: true,
-                require_docker: false,
+                require_docker: true,
             },
         }
     }
@@ -139,7 +143,28 @@ mod tests {
     use crate::cli::*;
     use crate::commands::{BCommand, UploadCommand};
     use crate::error::BError;
+    use crate::executers::DockerImage;
+    use crate::helper::Helper;
     use crate::workspace::{Workspace, WsBuildConfigHandler, WsSettingsHandler};
+
+    fn helper_test_upload_subcommand(
+        json_ws_settings: &str,
+        json_build_config: &str,
+        work_dir: &PathBuf,
+        logger: Box<dyn Logger>,
+        system: Box<dyn System>,
+        cmd_line: Vec<&str>,
+    ) -> Result<(), BError> {
+        let settings: WsSettingsHandler =
+            WsSettingsHandler::from_str(work_dir, json_ws_settings, None)?;
+        let config: WsBuildConfigHandler =
+            WsBuildConfigHandler::from_str(json_build_config, &settings)?;
+        let mut workspace: Workspace =
+            Workspace::new(Some(work_dir.to_owned()), Some(settings), Some(config))?;
+        let cli: Cli = Cli::new(logger, system, clap::Command::new("bakery"), Some(cmd_line));
+        let cmd: UploadCommand = UploadCommand::new();
+        cmd.execute(&cli, &mut workspace)
+    }
 
     #[test]
     fn test_cmd_upload() {
@@ -153,6 +178,9 @@ mod tests {
                 "supported": [
                     "default"
                 ]
+            },
+            "docker": {
+                "disabled": "true"
             }
         }"#;
         let json_build_config: &str = r#"
@@ -191,23 +219,14 @@ mod tests {
             .once()
             .returning(|_x| Ok(()));
         mocked_system.expect_env().returning(|| HashMap::new());
-        let settings: WsSettingsHandler =
-            WsSettingsHandler::from_str(work_dir, json_ws_settings, None)
-                .expect("Failed to parse settings");
-        let config: WsBuildConfigHandler =
-            WsBuildConfigHandler::from_str(json_build_config, &settings)
-                .expect("Failed to parse build config");
-        let mut workspace: Workspace =
-            Workspace::new(Some(work_dir.to_owned()), Some(settings), Some(config))
-                .expect("Failed to setup workspace");
-        let cli: Cli = Cli::new(
+        let _result: Result<(), BError> = helper_test_upload_subcommand(
+            json_ws_settings,
+            json_build_config,
+            &work_dir,
             Box::new(BLogger::new()),
             Box::new(mocked_system),
-            clap::Command::new("bakery"),
-            Some(vec!["bakery", "upload", "-c", "default"]),
+            vec!["bakery", "upload", "--config", "default"],
         );
-        let cmd: UploadCommand = UploadCommand::new();
-        let _result: Result<(), BError> = cmd.execute(&cli, &mut workspace);
     }
 
     #[test]
@@ -222,6 +241,9 @@ mod tests {
                 "supported": [
                     "default"
                 ]
+            },
+            "docker": {
+                "disabled": "true"
             }
         }"#;
         let json_build_config: &str = r#"
@@ -260,29 +282,107 @@ mod tests {
             .once()
             .returning(|_x| Ok(()));
         mocked_system.expect_env().returning(|| HashMap::new());
-        let settings: WsSettingsHandler =
-            WsSettingsHandler::from_str(work_dir, json_ws_settings, None)
-                .expect("Failed to parse settings");
-        let config: WsBuildConfigHandler =
-            WsBuildConfigHandler::from_str(json_build_config, &settings)
-                .expect("Failed to parse build config");
-        let mut workspace: Workspace =
-            Workspace::new(Some(work_dir.to_owned()), Some(settings), Some(config))
-                .expect("Failed to setup workspace");
-        let cli: Cli = Cli::new(
+        let _result: Result<(), BError> = helper_test_upload_subcommand(
+            json_ws_settings,
+            json_build_config,
+            &work_dir,
             Box::new(BLogger::new()),
             Box::new(mocked_system),
-            clap::Command::new("bakery"),
-            Some(vec![
+            vec![
                 "bakery",
                 "upload",
-                "-c",
+                "--config",
                 "default",
                 "--context",
                 "ARG3=arg4",
-            ]),
+            ],
         );
-        let cmd: UploadCommand = UploadCommand::new();
-        let _result: Result<(), BError> = cmd.execute(&cli, &mut workspace);
+    }
+
+    #[test]
+    fn test_cmd_upload_interactive() {
+        let json_ws_settings: &str = r#"
+        {
+            "version": "6",
+            "builds": {
+                "supported": [
+                    "default"
+                ]
+            }
+        }"#;
+        let json_build_config: &str = r#"
+        {
+            "version": "6",
+            "name": "default",
+            "description": "Test Description",
+            "arch": "test-arch",
+            "bb": {},
+            "context": [
+                "ARG1=arg1",
+                "ARG2=arg2",
+                "ARG3=arg3"
+            ],
+            "upload": {
+                "cmd": "$#[BKRY_SCRIPTS_DIR]/script.sh $#[ARG1] $#[ARG2] $#[ARG3]"
+            }
+        }
+        "#;
+        let temp_dir: TempDir =
+            TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
+        let work_dir: PathBuf = temp_dir.into_path();
+        let docker_image: DockerImage = DockerImage::new(&format!(
+            "ghcr.io/yanctab/bakery/bakery-workspace:{}",
+            env!("CARGO_PKG_VERSION")
+        ))
+        .expect("Invalid docker image format");
+        let mut mocked_system: MockSystem = MockSystem::new();
+        mocked_system.expect_inside_docker().returning(|| false);
+        mocked_system
+            .expect_check_call()
+            .with(mockall::predicate::eq(CallParams {
+                cmd_line: Helper::docker_pull_string(&docker_image),
+                env: HashMap::new(),
+                shell: true,
+            }))
+            .once()
+            .returning(|_x| Ok(()));
+        mocked_system
+            .expect_check_call()
+            .with(mockall::predicate::eq(CallParams {
+                cmd_line: Helper::docker_bootstrap_string(
+                    false,
+                    &vec![],
+                    &vec![],
+                    &work_dir.clone(),
+                    &work_dir,
+                    &docker_image,
+                    &vec![
+                        String::from("bakery"),
+                        String::from("upload"),
+                        String::from("--config"),
+                        String::from("default"),
+                        String::from("--interactive=false"),
+                    ],
+                ),
+                env: HashMap::new(),
+                shell: true,
+            }))
+            .once()
+            .returning(|_x| Ok(()));
+        mocked_system.expect_env().returning(|| HashMap::new());
+        let _result: Result<(), BError> = helper_test_upload_subcommand(
+            json_ws_settings,
+            json_build_config,
+            &work_dir,
+            Box::new(BLogger::new()),
+            Box::new(mocked_system),
+            vec![
+                "bakery",
+                "upload",
+                "--config",
+                "default",
+                "--interactive=false",
+            ],
+        );
     }
 }

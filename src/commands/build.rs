@@ -56,7 +56,7 @@ impl BCommand for BuildCommand {
         let debug_symbols: bool = self.get_arg_flag(cli, "debug_symbols", BCOMMAND)?;
         let tar_balls: bool = self.get_arg_flag(cli, "tar_balls", BCOMMAND)?;
         let dry_run: bool = self.get_arg_flag(cli, "dry_run", BCOMMAND)?;
-        let interactive_str: String = self.get_arg_str(cli, "interactive", BCOMMAND)?;
+        let interactive: bool = self.get_arg_bool(cli, "interactive", BCOMMAND)?;
         let ctx: Vec<String> = self.get_arg_many(cli, "ctx", BCOMMAND)?;
         let env: Vec<String> = self.get_arg_many(cli, "env", BCOMMAND)?;
         let volumes: Vec<String> = self.get_arg_many(cli, "volume", BCOMMAND)?;
@@ -64,14 +64,9 @@ impl BCommand for BuildCommand {
         let variant: String = self.get_arg_str(cli, "variant", BCOMMAND)?;
         let verbose: bool = self.get_arg_flag(cli, "verbose", BCOMMAND)?;
         let mut bb_variables: Vec<String> = Vec::new();
-        let mut interactive: bool = false;
 
         if workspace.settings().mode() == Mode::SETUP {
             return Err(BError::CmdInsideWorkspace(self.cmd.cmd_str.to_string()));
-        }
-
-        if interactive_str == "true" {
-            interactive = true;
         }
 
         if !workspace.valid_config(config.as_str()) {
@@ -82,10 +77,10 @@ impl BCommand for BuildCommand {
         }
 
         /*
-         * If docker is enabled in the workspace settings then bakery will be boottraped into a docker container
-         * with a bakery inside and all the baking will be done inside that docker container. Not all commands should
-         * be run inside of docker and if we are already inside docker we should not try and bootstrap into a
-         * second docker container.
+         * If Docker is enabled in the workspace settings, Bakery will be bootstrapped into
+         * a Docker container where all baking operations are performed.
+         * However, not all commands should run inside Docker, and if we're already inside
+         * a container, we must avoid bootstrapping into another one.
          */
         if !workspace.settings().docker_disabled()
             && self.is_docker_required()
@@ -332,7 +327,7 @@ impl BuildCommand {
                     .value_name("interactive")
                     .default_value("true")
                     .value_parser(["true", "false"])
-                    .help("Determines if a build inside docker should be interactive or not can be useful to set to false when running in the CI"),
+                    .help("Determines whether a build inside Docker should be interactive. This can be useful to set to false when running in CI environments."),
             )
             .arg(
                 clap::Arg::new("build_id")

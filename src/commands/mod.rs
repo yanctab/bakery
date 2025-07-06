@@ -54,31 +54,17 @@ pub trait BCommand {
         interactive: bool,
     ) -> Result<(), BError> {
         let docker: Docker = Docker::new(workspace.settings().docker_image(), interactive);
-
         /*
          * When we bootstrap bakery into docker we should make sure that we pull
          * in the entire env from the parent
          */
         let env: HashMap<String, String> = cli.env();
 
-        cli.info(format!("Bootstrap bakery into '{}'", docker.image()));
-
         if !PathBuf::from("/usr/bin/docker").exists() {
             return Err(BError::DockerError());
         }
 
-        /*
-         * The docker pull expects that there is a registry available and it will
-         * check if there is a newer image in the registry and fail if it cannot
-         * find the registry even if there is an image locally available.
-         * Ideally it should only pull the image if it cannot find a local image.
-         * I get the logic but in this case the image could only be available
-         * as a local image and we don't want to fail because of that. It might
-         * be that this is a bit to much of logic and we should migrate our current
-         * docker implemmentation to rust docker API.
-         */
-        // docker.pull(cli)?;
-
+        cli.info(format!("Bootstrap bakery into '{}'", docker.image()));
         return docker.bootstrap_bakery(
             cmd_line,
             cli,
@@ -99,6 +85,17 @@ pub trait BCommand {
             if sub_matches.contains_id(id) {
                 if let Some(value) = sub_matches.get_one::<String>(id) {
                     return Ok(value.clone());
+                }
+            }
+        }
+        return Err(BError::CliError(format!("Failed to read arg {}", id)));
+    }
+
+    fn get_arg_bool(&self, cli: &Cli, id: &str, cmd: &str) -> Result<bool, BError> {
+        if let Some(sub_matches) = cli.get_args().subcommand_matches(cmd) {
+            if sub_matches.contains_id(id) {
+                if let Some(value) = sub_matches.get_one::<String>(id) {
+                    return Ok(value == "true");
                 }
             }
         }
