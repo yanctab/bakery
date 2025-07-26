@@ -46,6 +46,8 @@ impl BCommand for SetupCommand {
         let args_context: IndexMap<String, String> = self.setup_context(ctx);
         let mut context: WsContextData = WsContextData::new(&args_context)?;
 
+        /*
+        For now we need to be able to run setup in a non-empty workspace
         match cli.is_ws_empty(&workspace.settings().work_dir()) {
             Ok(is_empty) => {
                 let ws_dir: String = workspace
@@ -66,7 +68,7 @@ impl BCommand for SetupCommand {
                     e.to_string()
                 )));
             }
-        }
+        }*/
 
         /*
          * If Docker is enabled in the workspace settings, Bakery will be bootstrapped into
