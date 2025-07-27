@@ -15,7 +15,6 @@ use std::path::PathBuf;
 use crate::cli::Cli;
 use crate::error::BError;
 use crate::executers::docker::Docker;
-use crate::executers::DockerImage;
 use crate::workspace::Workspace;
 
 // Bakery SubCommand
