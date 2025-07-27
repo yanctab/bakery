@@ -153,6 +153,11 @@ impl BCommand for BuildCommand {
         context.update(&extra_ctx);
         workspace.update_ctx(&context)?;
 
+        cli.debug(format!(
+            "Artifacts dir: {:?}",
+            workspace.settings().artifacts_dir()
+        ));
+
         if verbose {
             let variables: IndexMap<String, String> = workspace.context()?;
             cli.debug(format!("Context varibles for build config '{}':", config));
