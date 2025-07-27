@@ -43,32 +43,33 @@ impl BCommand for SetupCommand {
         let branch: String = self.get_arg_str(cli, "branch", BCOMMAND)?;
         let ctx: Vec<String> = self.get_arg_many(cli, "ctx", BCOMMAND)?;
         let interactive: bool = self.get_arg_bool(cli, "interactive", BCOMMAND)?;
+        let force: bool = self.get_arg_flag(cli, "force", BCOMMAND)?;
         let args_context: IndexMap<String, String> = self.setup_context(ctx);
         let mut context: WsContextData = WsContextData::new(&args_context)?;
 
-        /*
-        For now we need to be able to run setup in a non-empty workspace
-        match cli.is_ws_empty(&workspace.settings().work_dir()) {
-            Ok(is_empty) => {
-                let ws_dir: String = workspace
-                    .settings()
-                    .work_dir()
-                    .to_str()
-                    .unwrap_or_default()
-                    .to_string();
-                if !is_empty {
-                    return Err(BError::WorkspaceNotEmpty(ws_dir));
-                } else {
-                    cli.debug(format!("Workspace '{}' is empty", ws_dir));
+        if !force {
+            match cli.is_ws_empty(&workspace.settings().work_dir()) {
+                Ok(is_empty) => {
+                    let ws_dir: String = workspace
+                        .settings()
+                        .work_dir()
+                        .to_str()
+                        .unwrap_or_default()
+                        .to_string();
+                    if !is_empty {
+                        return Err(BError::WorkspaceNotEmpty(ws_dir));
+                    } else {
+                        cli.debug(format!("Workspace '{}' is empty", ws_dir));
+                    }
+                }
+                Err(e) => {
+                    return Err(BError::IOError(format!(
+                        "Failed to check for empty workspace, {}",
+                        e.to_string()
+                    )));
                 }
             }
-            Err(e) => {
-                return Err(BError::IOError(format!(
-                    "Failed to check for empty workspace, {}",
-                    e.to_string()
-                )));
-            }
-        }*/
+        }
 
         /*
          * If Docker is enabled in the workspace settings, Bakery will be bootstrapped into
@@ -138,6 +139,12 @@ impl SetupCommand {
             .default_value("true")
             .value_parser(["true", "false"])
             .help("Determines whether a build inside Docker should be interactive. This can be useful to set to false when running in CI environments."),
+      )
+      .arg(
+        clap::Arg::new("force")
+            .action(clap::ArgAction::SetTrue)
+            .long("force")
+            .help("Run the setup no matter if the workspace is empty or not. Default is false and will result in an error if setup is executed in an non-empty workspace."),
       )
       .arg(
         clap::Arg::new("ctx")
