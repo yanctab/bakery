@@ -1,5 +1,6 @@
 #!/bin/bash
 #
+set -e
 
 source /etc/os-release
 DISTRO=${ID}

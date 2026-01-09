@@ -9,7 +9,7 @@ set -eu
 #export RUSTUP_HOME=/usr/local/rustup
 #export CARGO_HOME=/usr/local/cargo
 #export PATH=$HOME/.cargo/bin:$PATH
-RUST_VERSION=1.81.0
+RUST_VERSION=1.82.0
 
 dpkgArch="$(dpkg --print-architecture)"
 case "${dpkgArch##*-}" in
@@ -37,6 +37,11 @@ rustc --version
 echo "INFO: install cargo-fmt"
 rustup component add rustfmt
 
-echo "INFO: Setup musl"
+echo "INFO: setup musl"
 rustup target add x86_64-unknown-linux-musl
-sudo apt install musl musl-tools musl-dev
+
+if [ ! -f /.dockerenv ]; then
+   sudo apt -y install musl musl-tools musl-dev build-essential jq
+   # We need to install the libssl dev packages to cross-compule openssl for musl
+   sudo apt -y install libssl-dev pkg-config
+fi
