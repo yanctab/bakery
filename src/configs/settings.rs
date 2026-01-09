@@ -40,14 +40,14 @@ impl WsSettings {
         let data: Value = Self::parse(json_string)?;
         let version: String = Self::get_str_value("version", &data, None)?;
         let mode: String = Self::get_str_value("mode", &data, Some(String::from("default")))?;
-        let mut configs_dir: String = String::from("configs");
-        let mut include_dir: String = String::from("configs/include");
-        let mut builds_dir: String = String::from("builds");
-        let mut artifacts_dir: String = String::from("artifacts");
-        let mut layers_dir: String = String::from("layers");
-        let mut scripts_dir: String = String::from("scripts");
-        let mut docker_dir: String = String::from("docker");
-        let mut cache_dir: String = String::from(".cache");
+        let mut configs_dir: String = BkryConstants::BKRY_DEFAULT_CFG_DIR.to_string();
+        let mut include_dir: String = BkryConstants::BKRY_DEFAULT_INCLUDE_CFG_DIR.to_string();
+        let mut builds_dir: String = BkryConstants::BKRY_DEFAULT_BUILDS_DIR.to_string();
+        let mut artifacts_dir: String = BkryConstants::BKRY_DEFAULT_ARTIFACTS_DIR.to_string();
+        let mut layers_dir: String = BkryConstants::BKRY_DEFAULT_LAYERS_DIR.to_string();
+        let mut scripts_dir: String = BkryConstants::BKRY_DEFAULT_SCRIPTS_DIR.to_string();
+        let mut docker_dir: String = BkryConstants::BKRY_DEFAULT_DOCKER_DIR.to_string();
+        let mut cache_dir: String = BkryConstants::BKRY_DEFAULT_CACHE_DIR.to_string();
         let supported: Vec<String>;
         let mut docker_image: String = String::from(BkryConstants::DOCKER_IMAGE);
         let mut docker_tag: String = String::from(BkryConstants::DOCKER_TAG);
@@ -59,24 +59,46 @@ impl WsSettings {
 
         match Self::get_value("workspace", &data) {
             Ok(ws_data) => {
-                configs_dir =
-                    Self::get_str_value("configsdir", ws_data, Some(String::from("configs")))?;
+                configs_dir = Self::get_str_value(
+                    "configsdir",
+                    ws_data,
+                    Some(BkryConstants::BKRY_DEFAULT_CFG_DIR.to_string()),
+                )?;
                 include_dir = Self::get_str_value(
                     "includedir",
                     ws_data,
                     Some(String::from("configs/include")),
                 )?;
-                builds_dir =
-                    Self::get_str_value("buildsdir", ws_data, Some(String::from("builds")))?;
-                artifacts_dir =
-                    Self::get_str_value("artifactsdir", ws_data, Some(String::from("artifacts")))?;
-                layers_dir =
-                    Self::get_str_value("layersdir", ws_data, Some(String::from("layers")))?;
-                scripts_dir =
-                    Self::get_str_value("scriptsdir", ws_data, Some(String::from("scripts")))?;
-                docker_dir =
-                    Self::get_str_value("dockerdir", ws_data, Some(String::from("docker")))?;
-                cache_dir = Self::get_str_value("cachedir", ws_data, Some(String::from(".cache")))?;
+                builds_dir = Self::get_str_value(
+                    "buildsdir",
+                    ws_data,
+                    Some(BkryConstants::BKRY_DEFAULT_BUILDS_DIR.to_string()),
+                )?;
+                artifacts_dir = Self::get_str_value(
+                    "artifactsdir",
+                    ws_data,
+                    Some(BkryConstants::BKRY_DEFAULT_ARTIFACTS_DIR.to_string()),
+                )?;
+                layers_dir = Self::get_str_value(
+                    "layersdir",
+                    ws_data,
+                    Some(BkryConstants::BKRY_DEFAULT_LAYERS_DIR.to_string()),
+                )?;
+                scripts_dir = Self::get_str_value(
+                    "scriptsdir",
+                    ws_data,
+                    Some(BkryConstants::BKRY_DEFAULT_SCRIPTS_DIR.to_string()),
+                )?;
+                docker_dir = Self::get_str_value(
+                    "dockerdir",
+                    ws_data,
+                    Some(BkryConstants::BKRY_DEFAULT_DOCKER_DIR.to_string()),
+                )?;
+                cache_dir = Self::get_str_value(
+                    "cachedir",
+                    ws_data,
+                    Some(BkryConstants::BKRY_DEFAULT_CACHE_DIR.to_string()),
+                )?;
             }
             Err(_err) => {}
         }
@@ -177,6 +199,7 @@ impl WsSettings {
 #[cfg(test)]
 mod tests {
     use crate::configs::{Context, WsSettings};
+    use crate::constants::BkryConstants;
     use crate::helper::Helper;
     use indexmap::{indexmap, IndexMap};
 
@@ -215,14 +238,38 @@ mod tests {
             "version": "6"
         }"#;
         let settings = Helper::setup_ws_settings(json_test_str);
-        assert_eq!(&settings.configs_dir, "configs");
-        assert_eq!(&settings.include_dir, "configs/include");
-        assert_eq!(&settings.artifacts_dir, "artifacts");
-        assert_eq!(&settings.layers_dir, "layers");
-        assert_eq!(&settings.builds_dir, "builds");
-        assert_eq!(&settings.scripts_dir, "scripts");
-        assert_eq!(&settings.docker_dir, "docker");
-        assert_eq!(&settings.cache_dir, ".cache");
+        assert_eq!(
+            &settings.configs_dir,
+            &BkryConstants::BKRY_DEFAULT_CFG_DIR.to_string()
+        );
+        assert_eq!(
+            &settings.include_dir,
+            &BkryConstants::BKRY_DEFAULT_INCLUDE_CFG_DIR.to_string()
+        );
+        assert_eq!(
+            &settings.artifacts_dir,
+            &BkryConstants::BKRY_DEFAULT_ARTIFACTS_DIR.to_string()
+        );
+        assert_eq!(
+            &settings.layers_dir,
+            &BkryConstants::BKRY_DEFAULT_LAYERS_DIR.to_string()
+        );
+        assert_eq!(
+            &settings.builds_dir,
+            &BkryConstants::BKRY_DEFAULT_BUILDS_DIR.to_string()
+        );
+        assert_eq!(
+            &settings.scripts_dir,
+            &BkryConstants::BKRY_DEFAULT_SCRIPTS_DIR.to_string()
+        );
+        assert_eq!(
+            &settings.docker_dir,
+            &BkryConstants::BKRY_DEFAULT_DOCKER_DIR.to_string()
+        );
+        assert_eq!(
+            &settings.cache_dir,
+            &BkryConstants::BKRY_DEFAULT_CACHE_DIR.to_string()
+        );
     }
 
     #[test]
@@ -232,7 +279,10 @@ mod tests {
             "version": "6"
         }"#;
         let settings = Helper::setup_ws_settings(json_test_str);
-        assert_eq!(&settings.configs_dir, "configs");
+        assert_eq!(
+            &settings.configs_dir,
+            &BkryConstants::BKRY_DEFAULT_CFG_DIR.to_string()
+        );
     }
 
     #[test]
@@ -245,7 +295,10 @@ mod tests {
             }
         }"#;
         let settings = Helper::setup_ws_settings(json_test_str);
-        assert_eq!(&settings.builds_dir, "builds");
+        assert_eq!(
+            &settings.builds_dir,
+            &BkryConstants::BKRY_DEFAULT_BUILDS_DIR.to_string()
+        );
     }
 
     #[test]
@@ -255,7 +308,10 @@ mod tests {
             "version": "6"
         }"#;
         let settings = Helper::setup_ws_settings(json_test_str);
-        assert_eq!(&settings.builds_dir, "builds");
+        assert_eq!(
+            &settings.builds_dir,
+            &BkryConstants::BKRY_DEFAULT_BUILDS_DIR.to_string()
+        );
     }
 
     #[test]
@@ -267,8 +323,11 @@ mod tests {
               "buildsdir": "builds_test"
             }
         }"#;
-        let settings = Helper::setup_ws_settings(json_test_str);
-        assert_eq!(&settings.artifacts_dir, "artifacts");
+        let settings: WsSettings = Helper::setup_ws_settings(json_test_str);
+        assert_eq!(
+            &settings.artifacts_dir,
+            &BkryConstants::BKRY_DEFAULT_ARTIFACTS_DIR.to_string()
+        );
     }
 
     #[test]
@@ -277,13 +336,16 @@ mod tests {
         {
             "version": "6"
         }"#;
-        let settings = Helper::setup_ws_settings(json_test_str);
-        assert_eq!(&settings.artifacts_dir, "artifacts");
+        let settings: WsSettings = Helper::setup_ws_settings(json_test_str);
+        assert_eq!(
+            &settings.artifacts_dir,
+            &BkryConstants::BKRY_DEFAULT_ARTIFACTS_DIR.to_string()
+        );
     }
 
     #[test]
     fn test_settings_config_no_scripts_dir() {
-        let json_test_str = r#"
+        let json_test_str: &str = r#"
         {
             "version": "6",
             "workspace": {
@@ -291,212 +353,236 @@ mod tests {
             }
         }"#;
         let settings = Helper::setup_ws_settings(json_test_str);
-        assert_eq!(&settings.scripts_dir, "scripts");
+        assert_eq!(
+            &settings.scripts_dir,
+            &BkryConstants::BKRY_DEFAULT_SCRIPTS_DIR.to_string()
+        );
     }
 
     #[test]
     fn test_settings_config_no_scripts_workspace_node() {
-        let json_test_str = r#"
+        let json_test_str: &str = r#"
         {
             "version": "6"
         }"#;
-        let settings = Helper::setup_ws_settings(json_test_str);
-        assert_eq!(&settings.scripts_dir, "scripts");
+        let settings: WsSettings = Helper::setup_ws_settings(json_test_str);
+        assert_eq!(
+            &settings.scripts_dir,
+            &BkryConstants::BKRY_DEFAULT_SCRIPTS_DIR.to_string()
+        );
     }
 
     #[test]
     fn test_settings_config_no_docker_dir() {
-        let json_test_str = r#"
+        let json_test_str: &str = r#"
         {
             "version": "6",
             "workspace": {
               "buildsdir": "builds_test"
             }
         }"#;
-        let settings = Helper::setup_ws_settings(json_test_str);
-        assert_eq!(&settings.docker_dir, "docker");
+        let settings: WsSettings = Helper::setup_ws_settings(json_test_str);
+        assert_eq!(
+            &settings.docker_dir,
+            &BkryConstants::BKRY_DEFAULT_DOCKER_DIR.to_string()
+        );
     }
 
     #[test]
     fn test_settings_config_no_docker_workspace_node() {
-        let json_test_str = r#"
+        let json_test_str: &str = r#"
         {
             "version": "6"
         }"#;
-        let settings = Helper::setup_ws_settings(json_test_str);
-        assert_eq!(&settings.docker_dir, "docker");
+        let settings: WsSettings = Helper::setup_ws_settings(json_test_str);
+        assert_eq!(
+            &settings.docker_dir,
+            &BkryConstants::BKRY_DEFAULT_DOCKER_DIR.to_string()
+        );
     }
 
     #[test]
     fn test_settings_config_no_cache_dir() {
-        let json_test_str = r#"
+        let json_test_str: &str = r#"
         {
             "version": "6",
             "workspace": {
               "buildsdir": "builds_test"
             }
         }"#;
-        let settings = Helper::setup_ws_settings(json_test_str);
-        assert_eq!(&settings.cache_dir, ".cache");
+        let settings: WsSettings = Helper::setup_ws_settings(json_test_str);
+        assert_eq!(
+            &settings.cache_dir,
+            &BkryConstants::BKRY_DEFAULT_CACHE_DIR.to_string()
+        );
     }
 
     #[test]
     fn test_settings_config_no_cache_workspace_node() {
-        let json_test_str = r#"
+        let json_test_str: &str = r#"
         {
             "version": "6"
         }"#;
-        let settings = Helper::setup_ws_settings(json_test_str);
-        assert_eq!(&settings.cache_dir, ".cache");
+        let settings: WsSettings = Helper::setup_ws_settings(json_test_str);
+        assert_eq!(
+            &settings.cache_dir,
+            &BkryConstants::BKRY_DEFAULT_CACHE_DIR.to_string()
+        );
     }
 
     #[test]
     fn test_settings_config_docker_image() {
-        let json_test_str = r#"
+        let json_test_str: &str = r#"
         {
             "version": "6",
             "docker": {
                 "image": "test-workspace"
             }
         }"#;
-        let settings = Helper::setup_ws_settings(json_test_str);
+        let settings: WsSettings = Helper::setup_ws_settings(json_test_str);
         assert_eq!(&settings.docker_image, "test-workspace");
     }
 
     #[test]
     fn test_settings_config_docker_work_dir() {
-        let json_test_str = r#"
+        let json_test_str: &str = r#"
         {
             "version": "5",
             "docker": {
                 "workdir": "test"
             }
         }"#;
-        let settings = Helper::setup_ws_settings(json_test_str);
+        let settings: WsSettings = Helper::setup_ws_settings(json_test_str);
         assert_eq!(&settings.docker_work_dir, "test");
     }
 
     #[test]
     fn test_settings_config_no_docker_image() {
-        let json_test_str = r#"
+        let json_test_str: &str = r#"
         {
             "version": "6",
             "docker": {
                 "tag": "0.1"
             }
         }"#;
-        let settings = Helper::setup_ws_settings(json_test_str);
+        let settings: WsSettings = Helper::setup_ws_settings(json_test_str);
         assert_eq!(&settings.docker_image, "yanctab/bakery/bakery-workspace");
     }
 
     #[test]
     fn test_settings_config_no_docker_image_node() {
-        let json_test_str = r#"
+        let json_test_str: &str = r#"
         {
             "version": "6"
         }"#;
-        let settings = Helper::setup_ws_settings(json_test_str);
+        let settings: WsSettings = Helper::setup_ws_settings(json_test_str);
         assert_eq!(&settings.docker_image, "yanctab/bakery/bakery-workspace");
     }
 
     #[test]
     fn test_settings_config_docker_tag() {
-        let json_test_str = r#"
+        let json_test_str: &str = r#"
         {
             "version": "6",
             "docker": {
                 "tag": "0.1"
             }
         }"#;
-        let settings = Helper::setup_ws_settings(json_test_str);
+        let settings: WsSettings = Helper::setup_ws_settings(json_test_str);
         assert_eq!(&settings.docker_tag, "0.1");
     }
 
     #[test]
     fn test_settings_config_no_docker_tag() {
-        let json_test_str = r#"
+        let json_test_str: &str = r#"
         {
             "version": "6",
             "docker": {
                 "image": "test-workspace"
             }
         }"#;
-        let settings = Helper::setup_ws_settings(json_test_str);
+        let settings: WsSettings = Helper::setup_ws_settings(json_test_str);
         assert_eq!(&settings.docker_tag, env!("CARGO_PKG_VERSION"));
     }
 
     #[test]
     fn test_settings_config_no_docker_tag_node() {
-        let json_test_str = r#"
+        let json_test_str: &str = r#"
         {
             "version": "6"
         }"#;
-        let settings = Helper::setup_ws_settings(json_test_str);
+        let settings: WsSettings = Helper::setup_ws_settings(json_test_str);
         assert_eq!(&settings.docker_tag, env!("CARGO_PKG_VERSION"));
     }
 
     #[test]
     fn test_settings_config_default_docker_enabled() {
-        let json_test_str = r#"
+        let json_test_str: &str = r#"
         {
             "version": "6"
         }"#;
-        let settings = Helper::setup_ws_settings(json_test_str);
+        let settings: WsSettings = Helper::setup_ws_settings(json_test_str);
         assert_eq!(&settings.docker_disabled, "false");
     }
 
     #[test]
     fn test_settings_config_docker_disabled() {
-        let json_test_str = r#"
+        let json_test_str: &str = r#"
         {
             "version": "6",
             "docker": {
                 "disabled": "true"
             }
         }"#;
-        let settings = Helper::setup_ws_settings(json_test_str);
+        let settings: WsSettings = Helper::setup_ws_settings(json_test_str);
         assert_eq!(&settings.docker_disabled, "true");
     }
 
     #[test]
     fn test_settings_config_docker_registry() {
-        let json_test_str = r#"
+        let json_test_str: &str = r#"
         {
             "version": "6",
             "docker": {
                 "registry": "test-registry"
             }
         }"#;
-        let settings = Helper::setup_ws_settings(json_test_str);
+        let settings: WsSettings = Helper::setup_ws_settings(json_test_str);
         assert_eq!(&settings.docker_registry, "test-registry");
     }
 
     #[test]
     fn test_settings_config_no_docker_registry() {
-        let json_test_str = r#"
+        let json_test_str: &str = r#"
         {
             "version": "6",
             "docker": {
                 "image": "test-workspace"
             }
         }"#;
-        let settings = Helper::setup_ws_settings(json_test_str);
-        assert_eq!(&settings.docker_registry, "ghcr.io");
+        let settings: WsSettings = Helper::setup_ws_settings(json_test_str);
+        assert_eq!(
+            &settings.docker_registry,
+            &BkryConstants::DOCKER_REGISTRY.to_string()
+        );
     }
 
     #[test]
     fn test_settings_config_no_docker_registry_node() {
-        let json_test_str = r#"
+        let json_test_str: &str = r#"
         {
             "version": "6"
         }"#;
-        let settings = Helper::setup_ws_settings(json_test_str);
-        assert_eq!(&settings.docker_registry, "ghcr.io");
+        let settings: WsSettings = Helper::setup_ws_settings(json_test_str);
+        assert_eq!(
+            &settings.docker_registry,
+            &BkryConstants::DOCKER_REGISTRY.to_string()
+        );
     }
 
     #[test]
     fn test_settings_config_docker_args() {
-        let json_test_str = r#"
+        let json_test_str: &str = r#"
         {
             "version": "6",
             "docker": {
@@ -507,7 +593,7 @@ mod tests {
                 ]
               }
         }"#;
-        let settings = Helper::setup_ws_settings(json_test_str);
+        let settings: WsSettings = Helper::setup_ws_settings(json_test_str);
         assert_eq!(
             &settings.docker_args,
             &vec![
@@ -520,17 +606,17 @@ mod tests {
 
     #[test]
     fn test_settings_config_no_docker_args() {
-        let json_test_str = r#"
+        let json_test_str: &str = r#"
         {
             "version": "6"
         }"#;
-        let settings = Helper::setup_ws_settings(json_test_str);
+        let settings: WsSettings = Helper::setup_ws_settings(json_test_str);
         assert!(&settings.docker_args.is_empty());
     }
 
     #[test]
     fn test_settings_config_build_configs() {
-        let json_test_str = r#"
+        let json_test_str: &str = r#"
         {
             "version": "6",
             "builds": {
@@ -540,7 +626,7 @@ mod tests {
                 ]
             }
         }"#;
-        let settings = Helper::setup_ws_settings(json_test_str);
+        let settings: WsSettings = Helper::setup_ws_settings(json_test_str);
         assert_eq!(
             &settings.supported,
             &vec![String::from("machine1-test"), String::from("machine2-test")]
@@ -554,33 +640,33 @@ mod tests {
 
     #[test]
     fn test_settings_config_no_supported_build_configs() {
-        let json_test_str = r#"
+        let json_test_str: &str = r#"
         {
             "version": "6",
             "builds": {
             }
         }"#;
-        let settings = Helper::setup_ws_settings(json_test_str);
+        let settings: WsSettings = Helper::setup_ws_settings(json_test_str);
         assert_eq!(settings.supported.is_empty(), true);
     }
 
     #[test]
     fn test_settings_config_no_build_node() {
-        let json_test_str = r#"
+        let json_test_str: &str = r#"
         {
             "version": "6"
         }"#;
-        let settings = Helper::setup_ws_settings(json_test_str);
+        let settings: WsSettings = Helper::setup_ws_settings(json_test_str);
         assert_eq!(settings.supported.is_empty(), true);
     }
 
     #[test]
     fn test_settings_config_merge() {
-        let json_test1_str = r#"
+        let json_test1_str: &str = r#"
         {
             "version": "5"
         }"#;
-        let json_test2_str = r#"
+        let json_test2_str: &str = r#"
         {
             "version": "5",
             "workspace": {
@@ -605,13 +691,22 @@ mod tests {
         }"#;
         let mut settings1: WsSettings = Helper::setup_ws_settings(json_test1_str);
         let mut settings2: WsSettings = Helper::setup_ws_settings(json_test2_str);
-        assert_eq!(settings1.configs_dir, "configs");
-        assert_eq!(settings1.include_dir, "configs/include");
-        assert_eq!(settings1.artifacts_dir, "artifacts");
-        assert_eq!(settings1.builds_dir, "builds");
-        assert_eq!(settings1.scripts_dir, "scripts");
-        assert_eq!(settings1.docker_dir, "docker");
-        assert_eq!(settings1.cache_dir, ".cache");
+        assert_eq!(settings1.configs_dir, BkryConstants::BKRY_DEFAULT_CFG_DIR);
+        assert_eq!(
+            settings1.include_dir,
+            BkryConstants::BKRY_DEFAULT_INCLUDE_CFG_DIR
+        );
+        assert_eq!(
+            settings1.artifacts_dir,
+            BkryConstants::BKRY_DEFAULT_ARTIFACTS_DIR
+        );
+        assert_eq!(settings1.builds_dir, BkryConstants::BKRY_DEFAULT_BUILDS_DIR);
+        assert_eq!(
+            settings1.scripts_dir,
+            BkryConstants::BKRY_DEFAULT_SCRIPTS_DIR
+        );
+        assert_eq!(settings1.docker_dir, BkryConstants::BKRY_DEFAULT_DOCKER_DIR);
+        assert_eq!(settings1.cache_dir, BkryConstants::BKRY_DEFAULT_CACHE_DIR);
         settings1.merge(&mut settings2);
         assert_eq!(settings1.configs_dir, "configs_test");
         assert_eq!(settings1.include_dir, "include_test");
@@ -644,7 +739,7 @@ mod tests {
          * priority so any value in this one should be be prioritized over a value in
          * the workspace.json in the actual workspace.
          */
-        let json_test1_str = r#"
+        let json_test1_str: &str = r#"
         {
             "version": "5",
             "workspace": {
@@ -670,7 +765,7 @@ mod tests {
                 ]
             }
         }"#;
-        let json_test2_str = r#"
+        let json_test2_str: &str = r#"
         {
             "version": "5",
             "workspace": {
@@ -730,7 +825,7 @@ mod tests {
 
     #[test]
     fn test_settings_config_context() {
-        let json_test_str = r#"
+        let json_test_str: &str = r#"
         {
             "version": "5",
             "workspace": {

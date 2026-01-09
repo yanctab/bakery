@@ -28,7 +28,7 @@ impl WsConfigFileHandler {
 
     pub fn new(work_dir: &PathBuf, home_dir: &PathBuf) -> Self {
         let bkry_home_cfg_dir: PathBuf = home_dir.clone().join(".bakery");
-        let bkry_cfg_dir: PathBuf = PathBuf::from(BkryConstants::CFG_DIR);
+        let bkry_cfg_dir: PathBuf = PathBuf::from(BkryConstants::BKRY_CFG_DIR);
         WsConfigFileHandler {
             work_dir: work_dir.clone(),
             bkry_home_cfg_dir,
@@ -225,15 +225,43 @@ mod tests {
         let settings: WsSettingsHandler = cfg_handler
             .ws_settings()
             .expect("Failed parse workspace settings");
-        assert_eq!(settings.builds_dir(), work_dir.clone().join("builds"));
-        assert_eq!(settings.cache_dir(), work_dir.clone().join(".cache"));
-        assert_eq!(settings.artifacts_dir(), work_dir.clone().join("artifacts"));
-        assert_eq!(settings.scripts_dir(), work_dir.clone().join("scripts"));
-        assert_eq!(settings.docker_dir(), work_dir.clone().join("docker"));
-        assert_eq!(settings.configs_dir(), work_dir.clone().join("configs"));
+        assert_eq!(
+            settings.builds_dir(),
+            work_dir
+                .clone()
+                .join(BkryConstants::BKRY_DEFAULT_BUILDS_DIR)
+        );
+        assert_eq!(
+            settings.cache_dir(),
+            work_dir.clone().join(BkryConstants::BKRY_DEFAULT_CACHE_DIR)
+        );
+        assert_eq!(
+            settings.artifacts_dir(),
+            work_dir
+                .clone()
+                .join(BkryConstants::BKRY_DEFAULT_ARTIFACTS_DIR)
+        );
+        assert_eq!(
+            settings.scripts_dir(),
+            work_dir
+                .clone()
+                .join(BkryConstants::BKRY_DEFAULT_SCRIPTS_DIR)
+        );
+        assert_eq!(
+            settings.docker_dir(),
+            work_dir
+                .clone()
+                .join(BkryConstants::BKRY_DEFAULT_DOCKER_DIR)
+        );
+        assert_eq!(
+            settings.configs_dir(),
+            work_dir.clone().join(BkryConstants::BKRY_DEFAULT_CFG_DIR)
+        );
         assert_eq!(
             settings.include_dir(),
-            work_dir.clone().join("configs/include")
+            work_dir
+                .clone()
+                .join(BkryConstants::BKRY_DEFAULT_INCLUDE_CFG_DIR)
         );
     }
 

@@ -180,10 +180,10 @@ impl WsContextData {
             CTX_KEY_WORK_DIR.to_string() => "".to_string(),
             CTX_KEY_WORKSPACE_DIR.to_string() => "".to_string(),
             CTX_KEY_HOME_CFG_DIR.to_string() => format!("{}/.bakery", Self::_env_home()),
-            CTX_KEY_CFG_DIR.to_string() => BkryConstants::CFG_DIR.to_string(),
-            CTX_KEY_BIN_DIR.to_string() => BkryConstants::BIN_DIR.to_string(),
-            CTX_KEY_OPT_DIR.to_string() => BkryConstants::OPT_DIR.to_string(),
-            CTX_KEY_OPT_SCRIPTS_DIR.to_string() => BkryConstants::OPT_SCRIPTS_DIR.to_string(),
+            CTX_KEY_CFG_DIR.to_string() => BkryConstants::BKRY_CFG_DIR.to_string(),
+            CTX_KEY_BIN_DIR.to_string() => BkryConstants::BKRY_BIN_DIR.to_string(),
+            CTX_KEY_OPT_DIR.to_string() => BkryConstants::BKRY_OPT_DIR.to_string(),
+            CTX_KEY_OPT_SCRIPTS_DIR.to_string() => BkryConstants::BKRY_OPT_SCRIPTS_DIR.to_string(),
         };
         let mut ctx: Context = Context::new(&ctx_default_variables);
         ctx.update(&variables);
@@ -310,19 +310,19 @@ mod tests {
         );
         assert_eq!(
             data.get_ctx_value(CTX_KEY_CFG_DIR),
-            String::from(BkryConstants::CFG_DIR)
+            String::from(BkryConstants::BKRY_CFG_DIR)
         );
         assert_eq!(
             data.get_ctx_value(CTX_KEY_BIN_DIR),
-            String::from(BkryConstants::BIN_DIR)
+            String::from(BkryConstants::BKRY_BIN_DIR)
         );
         assert_eq!(
             data.get_ctx_value(CTX_KEY_OPT_DIR),
-            String::from(BkryConstants::OPT_DIR)
+            String::from(BkryConstants::BKRY_OPT_DIR)
         );
         assert_eq!(
             data.get_ctx_value(CTX_KEY_OPT_SCRIPTS_DIR),
-            String::from(BkryConstants::OPT_SCRIPTS_DIR)
+            String::from(BkryConstants::BKRY_OPT_SCRIPTS_DIR)
         );
     }
 

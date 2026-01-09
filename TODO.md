@@ -4,11 +4,11 @@
 2. See if we should add BKRY_VARIANT and BKRY_HWREVISION as a context variable, --variant, --hwrevision. These variables should then be defined in the local.conf to make it possible to take action in the recipes. The BKRY_VARIANT could replace BKRY_RELEASE but will extend the number of variants
 release, dev, test for example.
 3. Add support for a hidden .workspace.json.
-4. Expand our list of constants.
+4. ~~Extend our list of constants.~~
 5. Should we update the default workspace configs path to look at /etc instead of looking for local paths in the workspace dir?
 6. Make sure all commands are bootstrapped into docker and can run using --interactive flag.
 7. Add --env flag to inject variables inside docker.
-8. Add --force to setup to allow running setup a second time even when it is non-empty workspace.
+8. ~~Add --force to setup to allow running setup a second time even when it is non-empty workspace.~~
 9. ~~Add --locked to cargo commands.~~
 10. ~~Make sure apt is not prompting in the setup-rust script.~~
 11. Add shflags to the scripts so it is available for any of the commands and tasks if needed this will make it more structured to follow a convention writing the scripts.

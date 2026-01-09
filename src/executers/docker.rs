@@ -101,18 +101,22 @@ impl Docker {
     fn bakery(&self) -> Vec<String> {
         vec![
             String::from("-v"),
-            String::from(format!("{}:{}:ro", BkryConstants::BIN, BkryConstants::BIN)),
-            String::from("-v"),
             String::from(format!(
                 "{}:{}:ro",
-                BkryConstants::CFG_DIR,
-                BkryConstants::CFG_DIR
+                BkryConstants::BKRY_BIN,
+                BkryConstants::BKRY_BIN
             )),
             String::from("-v"),
             String::from(format!(
                 "{}:{}:ro",
-                BkryConstants::OPT_DIR,
-                BkryConstants::OPT_DIR
+                BkryConstants::BKRY_CFG_DIR,
+                BkryConstants::BKRY_CFG_DIR
+            )),
+            String::from("-v"),
+            String::from(format!(
+                "{}:{}:ro",
+                BkryConstants::BKRY_OPT_DIR,
+                BkryConstants::BKRY_OPT_DIR
             )),
         ]
     }

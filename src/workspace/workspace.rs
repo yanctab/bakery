@@ -211,6 +211,7 @@ mod tests {
     use std::path::{Path, PathBuf};
     use tempdir::TempDir;
 
+    use crate::constants::BkryConstants;
     use crate::executers::DockerImage;
     use crate::helper::Helper;
     use crate::workspace::Workspace;
@@ -223,18 +224,33 @@ mod tests {
         Helper::setup_test_ws_default_dirs(test_work_dir);
         let ws: Workspace = Workspace::new(Some(PathBuf::from(test_work_dir)), None, None)
             .expect("Failed to setup workspace");
-        assert_eq!(ws.settings().builds_dir(), test_work_dir.join("builds"));
-        assert_eq!(ws.settings().cache_dir(), test_work_dir.join(".cache"));
+        assert_eq!(
+            ws.settings().builds_dir(),
+            test_work_dir.join(BkryConstants::BKRY_DEFAULT_BUILDS_DIR)
+        );
+        assert_eq!(
+            ws.settings().cache_dir(),
+            test_work_dir.join(BkryConstants::BKRY_DEFAULT_CACHE_DIR)
+        );
         assert_eq!(
             ws.settings().artifacts_dir(),
-            test_work_dir.join("artifacts")
+            test_work_dir.join(BkryConstants::BKRY_DEFAULT_ARTIFACTS_DIR)
         );
-        assert_eq!(ws.settings().scripts_dir(), test_work_dir.join("scripts"));
-        assert_eq!(ws.settings().docker_dir(), test_work_dir.join("docker"));
-        assert_eq!(ws.settings().configs_dir(), test_work_dir.join("configs"));
+        assert_eq!(
+            ws.settings().scripts_dir(),
+            test_work_dir.join(BkryConstants::BKRY_DEFAULT_SCRIPTS_DIR)
+        );
+        assert_eq!(
+            ws.settings().docker_dir(),
+            test_work_dir.join(BkryConstants::BKRY_DEFAULT_DOCKER_DIR)
+        );
+        assert_eq!(
+            ws.settings().configs_dir(),
+            test_work_dir.join(BkryConstants::BKRY_DEFAULT_CFG_DIR)
+        );
         assert_eq!(
             ws.settings().include_dir(),
-            test_work_dir.join("configs/include")
+            test_work_dir.join(BkryConstants::BKRY_DEFAULT_INCLUDE_CFG_DIR)
         );
         let docker_image: DockerImage = ws.settings().docker_image();
         assert_eq!(

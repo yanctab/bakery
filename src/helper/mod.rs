@@ -32,15 +32,20 @@ impl Helper {
     }
 
     pub fn setup_test_ws_default_dirs(work_dir: &Path) {
-        std::fs::create_dir_all(work_dir.join("configs")).expect("Failed to create config dir!");
-        std::fs::create_dir_all(work_dir.join("configs/include"))
+        std::fs::create_dir_all(work_dir.join(BkryConstants::BKRY_DEFAULT_CFG_DIR))
+            .expect("Failed to create config dir!");
+        std::fs::create_dir_all(work_dir.join(BkryConstants::BKRY_DEFAULT_INCLUDE_CFG_DIR))
             .expect("Failed to create include dir!");
-        std::fs::create_dir_all(work_dir.join("builds")).expect("Failed to create builds dir!");
-        std::fs::create_dir_all(work_dir.join("artifacts"))
+        std::fs::create_dir_all(work_dir.join(BkryConstants::BKRY_DEFAULT_BUILDS_DIR))
+            .expect("Failed to create builds dir!");
+        std::fs::create_dir_all(work_dir.join(BkryConstants::BKRY_DEFAULT_ARTIFACTS_DIR))
             .expect("Failed to create artifacts dir!");
-        std::fs::create_dir_all(work_dir.join("scripts")).expect("Failed to create scripts dir!");
-        std::fs::create_dir_all(work_dir.join("docker")).expect("Failed to create docker dir!");
-        std::fs::create_dir_all(work_dir.join(".cache")).expect("Failed to create cache dir!");
+        std::fs::create_dir_all(work_dir.join(BkryConstants::BKRY_DEFAULT_SCRIPTS_DIR))
+            .expect("Failed to create scripts dir!");
+        std::fs::create_dir_all(work_dir.join(BkryConstants::BKRY_DEFAULT_DOCKER_DIR))
+            .expect("Failed to create docker dir!");
+        std::fs::create_dir_all(work_dir.join(BkryConstants::BKRY_DEFAULT_CACHE_DIR))
+            .expect("Failed to create cache dir!");
         let default_settings: &str = r#"
         {
             "version": "5"
@@ -379,18 +384,22 @@ impl Helper {
         }
         cmd_line.append(&mut vec![
             String::from("-v"),
-            String::from(format!("{}:{}:ro", BkryConstants::BIN, BkryConstants::BIN)),
-            String::from("-v"),
             String::from(format!(
                 "{}:{}:ro",
-                BkryConstants::CFG_DIR,
-                BkryConstants::CFG_DIR
+                BkryConstants::BKRY_BIN,
+                BkryConstants::BKRY_BIN
             )),
             String::from("-v"),
             String::from(format!(
                 "{}:{}:ro",
-                BkryConstants::OPT_DIR,
-                BkryConstants::OPT_DIR
+                BkryConstants::BKRY_CFG_DIR,
+                BkryConstants::BKRY_CFG_DIR
+            )),
+            String::from("-v"),
+            String::from(format!(
+                "{}:{}:ro",
+                BkryConstants::BKRY_OPT_DIR,
+                BkryConstants::BKRY_OPT_DIR
             )),
             String::from("-v"),
             String::from("/etc/passwd:/etc/passwd:ro"),
