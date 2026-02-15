@@ -5,6 +5,8 @@ use zip::result::ZipError;
 
 #[derive(Error, Debug)]
 pub enum BError {
+    #[error("{0}. If your product requires it, run bkry sync --reset (or bkry clean) before building. If you understand the implications, you can run the build with --force.")]
+    BuildMetadataChangeError(String),
     #[error("{0}")]
     ParseError(String),
     #[error("Invalid 'artifact' node in build config. {0}")]
@@ -19,6 +21,8 @@ pub enum BError {
     InvalidBuildConfigError(String),
     #[error("Invalid bakery workspace: 'workspace.json' file not found. Expected in current directory, ~/.bakery/, or /etc/bakery/")]
     InvalidWorkspaceError(),
+    #[error("No build config was specified, to avoid specifying a build config every time lock the workspace by running 'bakery lock -c <build-config> [--variant <variant>]'")]
+    NoBuildConfigError(),
     #[error("{0}")]
     IOError(String),
     #[error("{0}")]
@@ -38,11 +42,17 @@ pub enum BError {
     #[error("Docker is enabled for the workspace but cannot locate /usr/bin/docker")]
     DockerError(),
     #[error("{0}")]
+    DockerVolumeError(String),
+    #[error("{0}")]
     DockerImageError(String),
     #[error("The workspace '{0}' is not empty! To setup workspace run 'bakery setup' in an empty directory. To sync run 'bakery sync'")]
     WorkspaceNotEmpty(String),
     #[error("The 'bakery {0}' command must be executed within an existing workspace. Please run 'bakery setup' or navigate to an existing workspace directory")]
-    CmdInsideWorkspace(String),
+    ExecuteCmdInsideWorkspace(String),
+    #[error(
+        "No workspace lock available run 'bakery lock -c <build-config> [--variant <variant>]'"
+    )]
+    NoWorkspaceLockError(),
 }
 
 impl std::convert::From<serde_json::Error> for BError {

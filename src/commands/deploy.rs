@@ -1,4 +1,5 @@
 use indexmap::{indexmap, IndexMap};
+use once_cell::sync::OnceCell;
 
 use crate::cli::Cli;
 use crate::commands::{BBaseCommand, BCommand, BError};
@@ -13,20 +14,20 @@ pub struct DeployCommand {
 }
 
 impl BCommand for DeployCommand {
-    fn get_config_name(&self, cli: &Cli) -> String {
-        if let Some(sub_matches) = cli.get_args().subcommand_matches(BCOMMAND) {
-            if sub_matches.contains_id("config") {
-                if let Some(value) = sub_matches.get_one::<String>("config") {
-                    return value.clone();
-                }
-            }
-        }
-
-        return String::from("default");
-    }
-
     fn cmd_str(&self) -> &str {
         &self.cmd.cmd_str
+    }
+
+    fn cmd_type(&self) -> &str {
+        &BCOMMAND
+    }
+
+    fn set_cfg_arg_specified(&self, value: bool) {
+        self.cmd.cfg_arg_available.set(value);
+    }
+
+    fn was_cfg_arg_specified(&self) -> bool {
+        self.cmd.cfg_arg_available.get().unwrap().clone()
     }
 
     fn subcommand(&self) -> &clap::Command {
@@ -35,6 +36,10 @@ impl BCommand for DeployCommand {
 
     fn is_docker_required(&self) -> bool {
         self.cmd.require_docker
+    }
+
+    fn args_required(&self) -> bool {
+        self.cmd.args_required
     }
 
     fn execute(&self, cli: &Cli, workspace: &mut Workspace) -> Result<(), BError> {
@@ -46,7 +51,9 @@ impl BCommand for DeployCommand {
         let mut context: WsContextData = WsContextData::new(&args_context)?;
 
         if workspace.settings().mode() == Mode::SETUP {
-            return Err(BError::CmdInsideWorkspace(self.cmd.cmd_str.to_string()));
+            return Err(BError::ExecuteCmdInsideWorkspace(
+                self.cmd.cmd_str.to_string(),
+            ));
         }
 
         if device != String::from("NA") {
@@ -131,6 +138,8 @@ impl DeployCommand {
                 sub_cmd: subcmd,
                 interactive: true,
                 require_docker: false,
+                cfg_arg_available: OnceCell::new(),
+                args_required: true,
             },
         }
     }
@@ -145,7 +154,10 @@ mod tests {
     use crate::cli::*;
     use crate::commands::{BCommand, DeployCommand};
     use crate::error::BError;
-    use crate::workspace::{Workspace, WsBuildConfigHandler, WsSettingsHandler};
+    use crate::helper::Helper;
+    use crate::workspace::{
+        Workspace, WsBuildConfigHandler, WsBuildMetadataHandler, WsSettingsHandler,
+    };
 
     #[test]
     fn test_cmd_deploy() {
@@ -182,15 +194,10 @@ mod tests {
         mocked_system
             .expect_check_call()
             .with(mockall::predicate::eq(CallParams {
-                cmd_line: vec![
-                    &format!("{}/scripts/script.sh", work_dir.display()),
-                    "arg1",
-                    "arg2",
-                    "arg3",
-                ]
-                .iter()
-                .map(|s| s.to_string())
-                .collect(),
+                cmd_line: Helper::cmd_line_string(&format!(
+                    "{}/scripts/script.sh arg1 arg2 arg3",
+                    work_dir.display()
+                )),
                 env: HashMap::new(),
                 shell: true,
             }))
@@ -203,9 +210,15 @@ mod tests {
         let config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_build_config, &settings)
                 .expect("Failed to parse build config");
-        let mut workspace: Workspace =
-            Workspace::new(Some(work_dir.to_owned()), Some(settings), Some(config))
-                .expect("Failed to setup workspace");
+        let metadata: WsBuildMetadataHandler =
+            WsBuildMetadataHandler::new(work_dir, &work_dir.join(PathBuf::from(".bkry")), None);
+        let mut workspace: Workspace = Workspace::new(
+            Some(work_dir.to_owned()),
+            Some(settings),
+            Some(config),
+            Some(metadata),
+        )
+        .expect("Failed to setup workspace");
         let cli: Cli = Cli::new(
             Box::new(BLogger::new()),
             Box::new(mocked_system),
@@ -251,15 +264,10 @@ mod tests {
         mocked_system
             .expect_check_call()
             .with(mockall::predicate::eq(CallParams {
-                cmd_line: vec![
-                    &format!("{}/scripts/script.sh", work_dir.display()),
-                    "arg1",
-                    "arg2",
-                    "arg4",
-                ]
-                .iter()
-                .map(|s| s.to_string())
-                .collect(),
+                cmd_line: Helper::cmd_line_string(&format!(
+                    "{}/scripts/script.sh arg1 arg2 arg4",
+                    work_dir.display()
+                )),
                 env: HashMap::new(),
                 shell: true,
             }))
@@ -272,9 +280,15 @@ mod tests {
         let config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_build_config, &settings)
                 .expect("Failed to parse build config");
-        let mut workspace: Workspace =
-            Workspace::new(Some(work_dir.to_owned()), Some(settings), Some(config))
-                .expect("Failed to setup workspace");
+        let metadata: WsBuildMetadataHandler =
+            WsBuildMetadataHandler::new(work_dir, &work_dir.join(PathBuf::from(".bkry")), None);
+        let mut workspace: Workspace = Workspace::new(
+            Some(work_dir.to_owned()),
+            Some(settings),
+            Some(config),
+            Some(metadata),
+        )
+        .expect("Failed to setup workspace");
         let cli: Cli = Cli::new(
             Box::new(BLogger::new()),
             Box::new(mocked_system),
@@ -326,15 +340,10 @@ mod tests {
         mocked_system
             .expect_check_call()
             .with(mockall::predicate::eq(CallParams {
-                cmd_line: vec![
-                    &format!("{}/scripts/script.sh", work_dir.display()),
-                    "192.168.1.90",
-                    "arg2",
-                    "arg3",
-                ]
-                .iter()
-                .map(|s| s.to_string())
-                .collect(),
+                cmd_line: Helper::cmd_line_string(&format!(
+                    "{}/scripts/script.sh 192.168.1.90 arg2 arg3",
+                    work_dir.display()
+                )),
                 env: HashMap::new(),
                 shell: true,
             }))
@@ -347,9 +356,15 @@ mod tests {
         let config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_build_config, &settings)
                 .expect("Failed to parse build config");
-        let mut workspace: Workspace =
-            Workspace::new(Some(work_dir.to_owned()), Some(settings), Some(config))
-                .expect("Failed to setup workspace");
+        let metadata: WsBuildMetadataHandler =
+            WsBuildMetadataHandler::new(work_dir, &work_dir.join(PathBuf::from(".bkry")), None);
+        let mut workspace: Workspace = Workspace::new(
+            Some(work_dir.to_owned()),
+            Some(settings),
+            Some(config),
+            Some(metadata),
+        )
+        .expect("Failed to setup workspace");
         let cli: Cli = Cli::new(
             Box::new(BLogger::new()),
             Box::new(mocked_system),
@@ -400,13 +415,10 @@ mod tests {
         mocked_system
             .expect_check_call()
             .with(mockall::predicate::eq(CallParams {
-                cmd_line: vec![
-                    &format!("{}/scripts/script.sh", work_dir.display()),
-                    "192.168.253.90",
-                ]
-                .iter()
-                .map(|s| s.to_string())
-                .collect(),
+                cmd_line: Helper::cmd_line_string(&format!(
+                    "{}/scripts/script.sh 192.168.253.90",
+                    work_dir.display()
+                )),
                 env: HashMap::new(),
                 shell: true,
             }))
@@ -419,9 +431,15 @@ mod tests {
         let config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_build_config, &settings)
                 .expect("Failed to parse build config");
-        let mut workspace: Workspace =
-            Workspace::new(Some(work_dir.to_owned()), Some(settings), Some(config))
-                .expect("Failed to setup workspace");
+        let metadata: WsBuildMetadataHandler =
+            WsBuildMetadataHandler::new(work_dir, &work_dir.join(PathBuf::from(".bkry")), None);
+        let mut workspace: Workspace = Workspace::new(
+            Some(work_dir.to_owned()),
+            Some(settings),
+            Some(config),
+            Some(metadata),
+        )
+        .expect("Failed to setup workspace");
         let cli: Cli = Cli::new(
             Box::new(BLogger::new()),
             Box::new(mocked_system),
@@ -465,13 +483,10 @@ mod tests {
         mocked_system
             .expect_check_call()
             .with(mockall::predicate::eq(CallParams {
-                cmd_line: vec![
-                    &format!("{}/scripts/script.sh", work_dir.display()),
-                    "192.168.253.91",
-                ]
-                .iter()
-                .map(|s| s.to_string())
-                .collect(),
+                cmd_line: Helper::cmd_line_string(&format!(
+                    "{}/scripts/script.sh 192.168.253.91",
+                    work_dir.display()
+                )),
                 env: HashMap::new(),
                 shell: true,
             }))
@@ -484,9 +499,15 @@ mod tests {
         let config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_build_config, &settings)
                 .expect("Failed to parse build config");
-        let mut workspace: Workspace =
-            Workspace::new(Some(work_dir.to_owned()), Some(settings), Some(config))
-                .expect("Failed to setup workspace");
+        let metadata: WsBuildMetadataHandler =
+            WsBuildMetadataHandler::new(work_dir, &work_dir.join(PathBuf::from(".bkry")), None);
+        let mut workspace: Workspace = Workspace::new(
+            Some(work_dir.to_owned()),
+            Some(settings),
+            Some(config),
+            Some(metadata),
+        )
+        .expect("Failed to setup workspace");
         let cli: Cli = Cli::new(
             Box::new(BLogger::new()),
             Box::new(mocked_system),
@@ -537,13 +558,10 @@ mod tests {
         mocked_system
             .expect_check_call()
             .with(mockall::predicate::eq(CallParams {
-                cmd_line: vec![
-                    &format!("{}/scripts/script.sh", work_dir.display()),
-                    "ctx-test-image",
-                ]
-                .iter()
-                .map(|s| s.to_string())
-                .collect(),
+                cmd_line: Helper::cmd_line_string(&format!(
+                    "{}/scripts/script.sh ctx-test-image",
+                    work_dir.display()
+                )),
                 env: HashMap::new(),
                 shell: true,
             }))
@@ -556,9 +574,15 @@ mod tests {
         let config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_build_config, &settings)
                 .expect("Failed to parse build config");
-        let mut workspace: Workspace =
-            Workspace::new(Some(work_dir.to_owned()), Some(settings), Some(config))
-                .expect("Failed to setup workspace");
+        let metadata: WsBuildMetadataHandler =
+            WsBuildMetadataHandler::new(work_dir, &work_dir.join(PathBuf::from(".bkry")), None);
+        let mut workspace: Workspace = Workspace::new(
+            Some(work_dir.to_owned()),
+            Some(settings),
+            Some(config),
+            Some(metadata),
+        )
+        .expect("Failed to setup workspace");
         let cli: Cli = Cli::new(
             Box::new(BLogger::new()),
             Box::new(mocked_system),
@@ -602,13 +626,10 @@ mod tests {
         mocked_system
             .expect_check_call()
             .with(mockall::predicate::eq(CallParams {
-                cmd_line: vec![
-                    &format!("{}/scripts/script.sh", work_dir.display()),
-                    "arg-test-image",
-                ]
-                .iter()
-                .map(|s| s.to_string())
-                .collect(),
+                cmd_line: Helper::cmd_line_string(&format!(
+                    "{}/scripts/script.sh arg-test-image",
+                    work_dir.display()
+                )),
                 env: HashMap::new(),
                 shell: true,
             }))
@@ -621,9 +642,15 @@ mod tests {
         let config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_build_config, &settings)
                 .expect("Failed to parse build config");
-        let mut workspace: Workspace =
-            Workspace::new(Some(work_dir.to_owned()), Some(settings), Some(config))
-                .expect("Failed to setup workspace");
+        let metadata: WsBuildMetadataHandler =
+            WsBuildMetadataHandler::new(work_dir, &work_dir.join(PathBuf::from(".bkry")), None);
+        let mut workspace: Workspace = Workspace::new(
+            Some(work_dir.to_owned()),
+            Some(settings),
+            Some(config),
+            Some(metadata),
+        )
+        .expect("Failed to setup workspace");
         let cli: Cli = Cli::new(
             Box::new(BLogger::new()),
             Box::new(mocked_system),

@@ -1,10 +1,13 @@
 use crate::cli::{BLogger, Cli};
 use crate::commands::BCommand;
 use crate::configs::WsConfigFileHandler;
+use crate::constants::BkryConstants;
 use crate::error::BError;
 use crate::executers::Docker;
 use crate::global::TestMode;
-use crate::workspace::{Mode, Workspace, WsBuildConfigHandler, WsSettingsHandler};
+use crate::workspace::{
+    Mode, Workspace, WsBuildConfigHandler, WsBuildMetadataHandler, WsId, WsSettingsHandler,
+};
 
 use clap::Command;
 use std::path::PathBuf;
@@ -99,7 +102,11 @@ impl Bakery {
         let mut cmd_require_docker: bool = false;
 
         self.cli.debug("Setup configuration handler".to_string());
-        let cfg_handler: WsConfigFileHandler = WsConfigFileHandler::new(&work_dir, &home_dir);
+        let cfg_handler: WsConfigFileHandler = WsConfigFileHandler::new(
+            &work_dir,
+            &home_dir,
+            &PathBuf::from(BkryConstants::BKRY_CFG_DIR),
+        );
         let cmd_name: &str = self.cli.get_args().subcommand_name().unwrap();
         /*
          * Verify that a 'workspace.json' file can be found in one of the configuration directories:
@@ -131,12 +138,43 @@ impl Bakery {
 
         match cmd_result {
             Ok(command) => {
+                let config_str: String =
+                    command
+                        .get_config(&self.cli, &work_dir)
+                        .unwrap_or_else(|err| {
+                            self.bkry_exit(
+                                &cmd_name.to_string(),
+                                cmd_require_docker,
+                                &err.to_string(),
+                                1,
+                                true,
+                            );
+                        });
+
                 cmd_require_docker = command.is_docker_required();
-                let config: WsBuildConfigHandler = self.unwrap_or_exit(
-                    cmd_name,
-                    cmd_require_docker,
-                    cfg_handler.build_config(&command.get_config_name(&self.cli), &settings),
-                );
+                let config: WsBuildConfigHandler = cfg_handler
+                    .build_config(&config_str, &settings)
+                    .unwrap_or_else(|err| {
+                        self.bkry_exit(
+                            &cmd_name.to_string(),
+                            cmd_require_docker,
+                            &err.to_string(),
+                            1,
+                            true,
+                        );
+                    });
+
+                let metadata: WsBuildMetadataHandler = cfg_handler
+                    .metadata(&config_str, &settings)
+                    .unwrap_or_else(|err| {
+                        self.bkry_exit(
+                            &cmd_name.to_string(),
+                            cmd_require_docker,
+                            &err.to_string(),
+                            1,
+                            true,
+                        );
+                    });
 
                 self.cli
                     .debug(format!("Build config: {}", config.build_data().name()));
@@ -150,24 +188,29 @@ impl Bakery {
                  * selected build configuration. The workspace settings are defined in 'workspace.json',
                  * while the build configuration is defined in one of the available build JSON files.
                  */
-                let mut workspace: Workspace = self.unwrap_or_exit::<Workspace>(
-                    cmd_name,
-                    cmd_require_docker,
-                    Workspace::new(
-                        Some(work_dir),
-                        Some(config.build_data().settings().clone()),
-                        Some(config),
-                    ),
-                );
-
-                self.cli
-                    .debug(format!("Mode: {:?}", workspace.settings().mode()));
+                let mut workspace: Workspace = Workspace::new(
+                    Some(work_dir),
+                    Some(config.build_data().settings().clone()),
+                    Some(config),
+                    Some(metadata),
+                )
+                .unwrap_or_else(|err| {
+                    self.bkry_exit(
+                        &cmd_name.to_string(),
+                        cmd_require_docker,
+                        &err.to_string(),
+                        1,
+                        true,
+                    );
+                });
 
                 if workspace.settings().mode() == Mode::TEST {
                     self.cli.debug("Enter Test mode".to_string());
                     TestMode::set_test_mode(true);
                 }
 
+                self.cli
+                    .debug(format!("Mode: {:?}", workspace.settings().mode()));
                 self.cli.debug(format!(
                     "Includes dir: {:?}",
                     workspace.settings().include_dir()

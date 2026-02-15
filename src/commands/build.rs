@@ -1,16 +1,17 @@
 use indexmap::{indexmap, IndexMap};
+use once_cell::sync::OnceCell;
 use std::collections::HashMap;
 
 use crate::cli::Cli;
-use crate::commands::{BBaseCommand, BCommand};
+use crate::commands::{BBaseCommand, BCommand, Variant};
 use crate::data::context::{
-    CTX_KEY_BUILD_ID, CTX_KEY_BUILD_SHA, CTX_KEY_BUILD_VARIANT, CTX_KEY_PLATFORM_RELEASE,
-    CTX_KEY_PLATFORM_VERSION, CTX_KEY_RELEASE_BUILD,
+    CTX_KEY_BUILD_ID, CTX_KEY_BUILD_SHA, CTX_KEY_BUILD_VARIANT, CTX_KEY_CONFIG_NAME,
+    CTX_KEY_PIPELINE_MODE, CTX_KEY_PLATFORM_RELEASE, CTX_KEY_PLATFORM_VERSION,
+    CTX_KEY_RELEASE_BUILD,
 };
 use crate::data::WsContextData;
 use crate::error::BError;
-use crate::executers::Docker;
-use crate::workspace::{Mode, Workspace, WsTaskHandler};
+use crate::workspace::{Mode, Workspace, WsBuildMetadataHandler, WsTaskHandler};
 
 static BCOMMAND: &str = "build";
 static BCOMMAND_ABOUT: &str =
@@ -22,20 +23,20 @@ pub struct BuildCommand {
 }
 
 impl BCommand for BuildCommand {
-    fn get_config_name(&self, cli: &Cli) -> String {
-        if let Some(sub_matches) = cli.get_args().subcommand_matches(BCOMMAND) {
-            if sub_matches.contains_id("config") {
-                if let Some(value) = sub_matches.get_one::<String>("config") {
-                    return value.clone();
-                }
-            }
-        }
-
-        return String::from("default");
-    }
-
     fn cmd_str(&self) -> &str {
         &self.cmd.cmd_str
+    }
+
+    fn cmd_type(&self) -> &str {
+        &BCOMMAND
+    }
+
+    fn set_cfg_arg_specified(&self, value: bool) {
+        self.cmd.cfg_arg_available.set(value);
+    }
+
+    fn was_cfg_arg_specified(&self) -> bool {
+        self.cmd.cfg_arg_available.get().unwrap_or(&false).clone()
     }
 
     fn subcommand(&self) -> &clap::Command {
@@ -46,8 +47,14 @@ impl BCommand for BuildCommand {
         true
     }
 
+    fn args_required(&self) -> bool {
+        self.cmd.args_required
+    }
+
     fn execute(&self, cli: &Cli, workspace: &mut Workspace) -> Result<(), BError> {
-        let config: String = self.get_arg_str(cli, "config", BCOMMAND)?;
+        let config: String = self.get_config(cli, &workspace.settings().work_dir())?;
+        let variant: Variant = self.get_variant(cli, &workspace.settings().work_dir())?;
+        let empty_config: bool = !self.was_cfg_arg_specified();
         let version: String = self.get_arg_str(cli, "platform_version", BCOMMAND)?;
         let build_id: String = self.get_arg_str(cli, "build_id", BCOMMAND)?;
         let sha: String = self.get_arg_str(cli, "build_sha", BCOMMAND)?;
@@ -61,19 +68,16 @@ impl BCommand for BuildCommand {
         let env: Vec<String> = self.get_arg_many(cli, "env", BCOMMAND)?;
         let volumes: Vec<String> = self.get_arg_many(cli, "volume", BCOMMAND)?;
         let tasks: Vec<String> = self.get_arg_many(cli, "tasks", BCOMMAND)?;
-        let variant: String = self.get_arg_str(cli, "variant", BCOMMAND)?;
         let verbose: bool = self.get_arg_flag(cli, "verbose", BCOMMAND)?;
+        let mut metadata: bool = self.get_arg_bool(cli, "metadata", BCOMMAND)?;
+        let force: bool = self.get_arg_flag(cli, "force", BCOMMAND)?;
+        let pipeline: bool = self.get_arg_flag(cli, "pipeline", BCOMMAND)?;
         let mut bb_variables: Vec<String> = Vec::new();
 
-        if workspace.settings().mode() == Mode::SETUP {
-            return Err(BError::CmdInsideWorkspace(self.cmd.cmd_str.to_string()));
-        }
-
-        if !workspace.valid_config(config.as_str()) {
-            return Err(BError::CliError(format!(
-                "Unsupported build config '{}'",
-                config
-            )));
+        if empty_config {
+            cli.debug(String::from(
+                "No build config specified on the command line falling back to the build metadata",
+            ));
         }
 
         /*
@@ -86,14 +90,27 @@ impl BCommand for BuildCommand {
             && self.is_docker_required()
             && !cli.inside_docker()
         {
-            return self.bootstrap(&cli.get_cmd_line(), cli, workspace, &volumes, interactive);
+            return self.bootstrap(
+                &self.get_cmd_line(cli, &config, Some(variant)),
+                cli,
+                workspace,
+                &volumes,
+                interactive,
+            );
         }
 
-        /*
-        if !workspace.config().enabled() {
-            return Err(BError::CliError(format!("Build config '{}' is currently not enabled", config)));
+        if workspace.settings().mode() == Mode::SETUP {
+            return Err(BError::ExecuteCmdInsideWorkspace(
+                self.cmd.cmd_str.to_string(),
+            ));
         }
-        */
+
+        if !workspace.valid_config(config.as_str()) {
+            return Err(BError::CliError(format!(
+                "Unsupported build config '{}'",
+                config
+            )));
+        }
 
         if tar_balls {
             bb_variables.push("BB_GENERATE_MIRROR_TARBALLS = \"1\"".to_string());
@@ -106,14 +123,16 @@ impl BCommand for BuildCommand {
 
         let env_variables: HashMap<String, String> = self.setup_env(env);
         let mut args_context: IndexMap<String, String> = self.setup_context(ctx);
+        args_context.insert(CTX_KEY_PIPELINE_MODE.to_string(), pipeline.to_string());
+        args_context.insert(CTX_KEY_CONFIG_NAME.to_string(), config.clone());
 
         let mut extra_ctx: IndexMap<String, String> = indexmap! {
-            String::from(CTX_KEY_PLATFORM_VERSION) => version.clone(),
-            String::from(CTX_KEY_BUILD_ID) => build_id.clone(),
-            String::from(CTX_KEY_BUILD_SHA) => sha,
-            String::from(CTX_KEY_RELEASE_BUILD) => "0".to_string(),
-            String::from(CTX_KEY_BUILD_VARIANT) => variant.clone(),
-            String::from(CTX_KEY_PLATFORM_RELEASE) => format!("{}-{}", version, build_id),
+            CTX_KEY_PLATFORM_VERSION.to_string() => version.clone(),
+            CTX_KEY_BUILD_ID.to_string() => build_id.clone(),
+            CTX_KEY_BUILD_SHA.to_string() => sha,
+            CTX_KEY_RELEASE_BUILD.to_string() => "0".to_string(),
+            CTX_KEY_BUILD_VARIANT.to_string() => variant.to_string(),
+            CTX_KEY_PLATFORM_RELEASE.to_string() => format!("{}-{}", version, build_id),
         };
 
         if archiver {
@@ -128,7 +147,7 @@ impl BCommand for BuildCommand {
             args_context.insert("BKRY_DEBUG_SYMBOLS".to_string(), "1".to_string());
         }
 
-        if variant == "release" {
+        if variant == Variant::RELEASE {
             /*
              * Build commands defined in the build config needs to
              * know if it is release build or not running by including
@@ -136,7 +155,6 @@ impl BCommand for BuildCommand {
              * the build commands. We are keeping BKRY_RELEASE_BUILD for
              * backwards compatibility but should be replaced with BKRY_BUILD_VARIANT
              */
-            extra_ctx.insert(String::from(CTX_KEY_BUILD_VARIANT), "release".to_string());
             extra_ctx.insert(String::from(CTX_KEY_RELEASE_BUILD), "1".to_string());
         }
 
@@ -153,10 +171,49 @@ impl BCommand for BuildCommand {
         context.update(&extra_ctx);
         workspace.update_ctx(&context)?;
 
-        cli.debug(format!(
+        if pipeline {
+            /*
+             * When in pipeline mode we should not use the build metadata to lock
+             * the workspace.
+             */
+            metadata = false;
+            cli.info(format!("Pipeline Mode: {}", pipeline));
+        }
+
+        if metadata {
+            let meta: &WsBuildMetadataHandler = workspace.metadata();
+            if !force {
+                meta.verify(
+                    config.as_str(),
+                    workspace.config().build_data().bitbake().machine(),
+                    workspace.config().build_data().bitbake().distro(),
+                    &variant,
+                )?;
+            }
+
+            meta.write(
+                config.as_str(),
+                workspace.config().build_data().bitbake().machine(),
+                workspace.config().build_data().bitbake().distro(),
+                &variant,
+            )?;
+        }
+
+        /*
+        cli.info(format!("Build Config: {}", config));
+        cli.info(format!(
+            "Build Machine: {}",
+            workspace.config().build_data().bitbake().machine()
+        ));
+        cli.info(format!(
+            "Build Distro: {}",
+            workspace.config().build_data().bitbake().distro()
+        ));
+        cli.info(format!("Build Variant: {}", variant));
+        cli.info(format!(
             "Artifacts dir: {:?}",
             workspace.settings().artifacts_dir()
-        ));
+        ));*/
 
         if verbose {
             let variables: IndexMap<String, String> = workspace.context()?;
@@ -215,17 +272,6 @@ impl BCommand for BuildCommand {
 }
 
 impl BuildCommand {
-    fn setup_env(&self, env: Vec<String>) -> HashMap<String, String> {
-        let variables: HashMap<String, String> = env
-            .iter()
-            .map(|e| {
-                let v: Vec<&str> = e.split('=').collect();
-                (v[0].to_string(), v[1].to_string())
-            })
-            .collect();
-        variables
-    }
-
     pub fn new() -> Self {
         let subcmd: clap::Command = clap::Command::new(BCOMMAND)
             .about(BCOMMAND_ABOUT)
@@ -335,12 +381,33 @@ impl BuildCommand {
                     .help("Determines whether a build inside Docker should be interactive. This can be useful to set to false when running in CI environments."),
             )
             .arg(
+                clap::Arg::new("metadata")
+                    .short('m')
+                    .long("meta-data")
+                    .value_name("metadata")
+                    .default_value("true")
+                    .value_parser(["true", "false"])
+                    .help("Determines whether workspace build metadata, should be tracked under ~/.bkry."),
+            )
+            .arg(
+                clap::Arg::new("pipeline")
+                .action(clap::ArgAction::SetTrue)
+                .long("pipeline")
+                .help("Run build in pipeline mode, can be used to limit functionality that can be in conflict with the pipeline")
+            )
+            .arg(
                 clap::Arg::new("build_id")
                     .short('n')
                     .long("build-id")
                     .value_name("nbr")
                     .default_value("0")
                     .help("Build id number can be used if x.y.z is not enough for some reason and will be part of BKRY_PLATFORM_RELEASE x.y.z-w"),
+            )
+            .arg(
+                clap::Arg::new("force")
+                    .action(clap::ArgAction::SetTrue)
+                    .long("force")
+                    .help("Force the build to run, bypassing any validations that may prevent it."),
             )
             .arg(
                 clap::Arg::new("ctx")
@@ -358,6 +425,8 @@ impl BuildCommand {
                 sub_cmd: subcmd,
                 interactive: true,
                 require_docker: true,
+                cfg_arg_available: OnceCell::new(),
+                args_required: true,
             },
         }
     }
@@ -373,10 +442,13 @@ mod tests {
 
     use crate::cli::*;
     use crate::commands::{BCommand, BuildCommand};
+    use crate::constants::BkryConstants;
     use crate::error::BError;
     use crate::executers::DockerImage;
     use crate::helper::Helper;
-    use crate::workspace::{Workspace, WsBuildConfigHandler, WsSettingsHandler};
+    use crate::workspace::{
+        Workspace, WsBuildConfigHandler, WsBuildMetadataHandler, WsId, WsSettingsHandler,
+    };
 
     fn helper_test_build_subcommand(
         json_ws_settings: &str,
@@ -390,8 +462,14 @@ mod tests {
             WsSettingsHandler::from_str(work_dir, json_ws_settings, None)?;
         let config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_build_config, &settings)?;
-        let mut workspace: Workspace =
-            Workspace::new(Some(work_dir.to_owned()), Some(settings), Some(config))?;
+        let metadata: WsBuildMetadataHandler =
+            WsBuildMetadataHandler::new(work_dir, &work_dir.join(PathBuf::from(".bkry")), None);
+        let mut workspace: Workspace = Workspace::new(
+            Some(work_dir.to_owned()),
+            Some(settings),
+            Some(config),
+            Some(metadata),
+        )?;
         let cli: Cli = Cli::new(logger, system, clap::Command::new("bakery"), Some(cmd_line));
         let cmd: BuildCommand = BuildCommand::new();
         cmd.execute(&cli, &mut workspace)
@@ -492,9 +570,15 @@ mod tests {
         let config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_build_config, &settings)
                 .expect("Failed to setup build config handler");
-        let mut workspace: Workspace =
-            Workspace::new(Some(work_dir.to_owned()), Some(settings), Some(config))
-                .expect("Failed to setup workspace handler");
+        let metadata: WsBuildMetadataHandler =
+            WsBuildMetadataHandler::new(&work_dir, &work_dir.join(PathBuf::from(".bkry")), None);
+        let mut workspace: Workspace = Workspace::new(
+            Some(work_dir.to_owned()),
+            Some(settings),
+            Some(config),
+            Some(metadata),
+        )
+        .expect("Failed to setup workspace handler");
         let mut mocked_system: MockSystem = MockSystem::new();
         mocked_system
             .expect_init_env_file()
@@ -506,10 +590,13 @@ mod tests {
                     .iter()
                     .map(|s| s.to_string())
                     .collect(),
-                env: HashMap::from([(
-                    String::from("BB_ENV_PASSTHROUGH_ADDITIONS"),
-                    String::from("SSTATE_DIR DL_DIR TMPDIR"),
-                )]),
+                env: HashMap::from([
+                    (
+                        String::from("BB_ENV_PASSTHROUGH_ADDITIONS"),
+                        String::from("SSTATE_DIR DL_DIR TMPDIR"),
+                    ),
+                    (String::from("BKRY_WORKSPACE_ID"), WsId::get()),
+                ]),
                 shell: true,
             }))
             .once()
@@ -727,7 +814,7 @@ mod tests {
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
-                env: HashMap::new(),
+                env: HashMap::from([(String::from("BKRY_WORKSPACE_ID"), WsId::get())]),
                 shell: true,
             }))
             .once()
@@ -789,7 +876,7 @@ mod tests {
             .expect_check_call()
             .with(mockall::predicate::eq(CallParams {
                 cmd_line: Helper::docker_pull_string(&docker_image),
-                env: HashMap::new(),
+                env: HashMap::from([(String::from("BKRY_WORKSPACE_ID"), WsId::get())]),
                 shell: true,
             }))
             .once()
@@ -830,6 +917,7 @@ mod tests {
         );
     }
 
+    /*
     #[test]
     fn test_cmd_build_docker_volumes() {
         let json_ws_settings: &str = r#"
@@ -873,7 +961,7 @@ mod tests {
             .expect_check_call()
             .with(mockall::predicate::eq(CallParams {
                 cmd_line: Helper::docker_pull_string(&docker_image),
-                env: HashMap::new(),
+                env: HashMap::from([(String::from("BKRY_WORKSPACE_ID"), WsId::get())]),
                 shell: true,
             }))
             .once()
@@ -922,6 +1010,7 @@ mod tests {
             ],
         );
     }
+    */
 
     #[test]
     fn test_cmd_build_docker_interactive() {
@@ -966,7 +1055,7 @@ mod tests {
             .expect_check_call()
             .with(mockall::predicate::eq(CallParams {
                 cmd_line: Helper::docker_pull_string(&docker_image),
-                env: HashMap::new(),
+                env: HashMap::from([(String::from("BKRY_WORKSPACE_ID"), WsId::get())]),
                 shell: true,
             }))
             .once()
@@ -1062,7 +1151,7 @@ mod tests {
             .expect_check_call()
             .with(mockall::predicate::eq(CallParams {
                 cmd_line: Helper::docker_pull_string(&docker_image),
-                env: HashMap::new(),
+                env: HashMap::from([(String::from("BKRY_WORKSPACE_ID"), WsId::get())]),
                 shell: true,
             }))
             .once()
@@ -1157,10 +1246,13 @@ mod tests {
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
-                env: HashMap::from([(
-                    String::from("BB_ENV_PASSTHROUGH_ADDITIONS"),
-                    String::from("SSTATE_DIR DL_DIR TMPDIR"),
-                )]),
+                env: HashMap::from([
+                    (
+                        String::from("BB_ENV_PASSTHROUGH_ADDITIONS"),
+                        String::from("SSTATE_DIR DL_DIR TMPDIR"),
+                    ),
+                    (String::from("BKRY_WORKSPACE_ID"), WsId::get()),
+                ]),
                 shell: true,
             }))
             .once()
@@ -1252,10 +1344,13 @@ mod tests {
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
-                env: HashMap::from([(
-                    String::from("BB_ENV_PASSTHROUGH_ADDITIONS"),
-                    String::from("SSTATE_DIR DL_DIR TMPDIR"),
-                )]),
+                env: HashMap::from([
+                    (
+                        String::from("BB_ENV_PASSTHROUGH_ADDITIONS"),
+                        String::from("SSTATE_DIR DL_DIR TMPDIR"),
+                    ),
+                    (String::from("BKRY_WORKSPACE_ID"), WsId::get()),
+                ]),
                 shell: true,
             }))
             .once()
@@ -1278,10 +1373,13 @@ mod tests {
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
-                env: HashMap::from([(
-                    String::from("BB_ENV_PASSTHROUGH_ADDITIONS"),
-                    String::from("SSTATE_DIR DL_DIR TMPDIR"),
-                )]),
+                env: HashMap::from([
+                    (
+                        String::from("BB_ENV_PASSTHROUGH_ADDITIONS"),
+                        String::from("SSTATE_DIR DL_DIR TMPDIR"),
+                    ),
+                    (String::from("BKRY_WORKSPACE_ID"), WsId::get()),
+                ]),
                 shell: true,
             }))
             .once()
@@ -1454,29 +1552,31 @@ mod tests {
         );
     }
 
-    /*
     #[test]
     fn test_cmd_build_env() {
         let json_ws_settings: &str = r#"
         {
-            "version": "6",
+            "version": "5",
             "builds": {
                 "supported": [
                     "default"
                 ]
+            },
+            "docker": {
+                "disabled": "true"
             }
         }"#;
         let json_build_config: &str = r#"
         {
-            "version": "6",
+            "version": "5",
             "name": "default",
             "description": "Test Description",
             "arch": "test-arch",
             "tasks": {
                 "task-name": {
                     "index": "1",
-                    "name": "task-name",
                     "type": "non-bitbake",
+                    "name": "task-name",
                     "env": [
                         "ENV_VAR1=VALUE1"
                     ],
@@ -1486,30 +1586,458 @@ mod tests {
                 }
             }
         }"#;
-        let temp_dir: TempDir = TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
+        let temp_dir: TempDir =
+            TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
         let work_dir: PathBuf = temp_dir.into_path();
-        let build_dir: PathBuf = work_dir.join("build/");
+        let build_dir: PathBuf = work_dir.join("build");
         let mut mocked_system: MockSystem = MockSystem::new();
         mocked_system
             .expect_check_call()
             .with(mockall::predicate::eq(CallParams {
-                cmd_line: vec!["cd", &build_dir.to_string_lossy().to_string(), "&&", "test.sh", "build"]
-                    .iter()
-                    .map(|s| s.to_string())
-                    .collect(),
-                env: HashMap::new(),
+                cmd_line: Helper::cmd_line_string(&format!(
+                    "cd {} && test.sh build",
+                    &build_dir.to_string_lossy().to_string()
+                )),
+                env: HashMap::from([
+                    (String::from("ENV_VAR1"), String::from("CLI_VALUE1")),
+                    (String::from("BKRY_WORKSPACE_ID"), WsId::get()),
+                ]),
                 shell: true,
             }))
             .once()
             .returning(|_x| Ok(()));
+        mocked_system.expect_env().returning(|| HashMap::new());
         let _result: Result<(), BError> = helper_test_build_subcommand(
             json_ws_settings,
             json_build_config,
             &work_dir,
             Box::new(BLogger::new()),
             Box::new(mocked_system),
-            vec!["bakery", "build", "--config", "default", "--tasks", "task-name", "--env", "ENV_VAR1=CLI_VALUE1"],
+            vec![
+                "bakery",
+                "build",
+                "--config",
+                "default",
+                "--tasks",
+                "task-name",
+                "--env",
+                "ENV_VAR1=CLI_VALUE1",
+            ],
         );
     }
-    */
+
+    #[test]
+    fn test_cmd_build_variant() {
+        let json_ws_settings: &str = r#"
+        {
+            "version": "5",
+            "builds": {
+                "supported": [
+                    "default"
+                ]
+            },
+            "docker": {
+                "disabled": "true"
+            }
+        }"#;
+        let json_build_config: &str = r#"
+        {
+            "version": "5",
+            "name": "default",
+            "description": "Test Description",
+            "arch": "test-arch",
+            "tasks": {
+                "task-name": {
+                    "index": "1",
+                    "name": "task-name",
+                    "type": "non-bitbake",
+                    "builddir": "build",
+                    "build": "test.sh $#[BKYR_BUILD_VARIANT]",
+                    "clean": "test.sh clean"
+                }
+            }
+        }"#;
+        let temp_dir: TempDir =
+            TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
+        let work_dir: PathBuf = temp_dir.into_path();
+        let build_dir: PathBuf = work_dir.join("build");
+        let mut mocked_system: MockSystem = MockSystem::new();
+        mocked_system
+            .expect_check_call()
+            .with(mockall::predicate::eq(CallParams {
+                cmd_line: Helper::cmd_line_string(&format!(
+                    "cd {} && test.sh release",
+                    &build_dir.to_string_lossy().to_string()
+                )),
+                env: HashMap::from([(String::from("BKRY_WORKSPACE_ID"), WsId::get())]),
+                shell: true,
+            }))
+            .once()
+            .returning(|_x| Ok(()));
+        mocked_system.expect_env().returning(|| HashMap::new());
+        let _result: Result<(), BError> = helper_test_build_subcommand(
+            json_ws_settings,
+            json_build_config,
+            &work_dir,
+            Box::new(BLogger::new()),
+            Box::new(mocked_system),
+            vec![
+                "bakery",
+                "build",
+                "--config",
+                "default",
+                "--variant",
+                "release",
+            ],
+        );
+    }
+
+    #[test]
+    fn test_cmd_build_ctx_variant() {
+        let json_ws_settings: &str = r#"
+        {
+            "version": "5",
+            "builds": {
+                "supported": [
+                    "default"
+                ]
+            },
+            "docker": {
+                "disabled": "true"
+            }
+        }"#;
+        let json_build_config: &str = r#"
+        {
+            "version": "5",
+            "name": "default",
+            "description": "Test Description",
+            "arch": "test-arch",
+            "context": [
+                "BKRY_BUILD_VARIANT=dev"
+            ],
+            "tasks": {
+                "task-name": {
+                    "index": "1",
+                    "name": "task-name",
+                    "type": "non-bitbake",
+                    "builddir": "build",
+                    "build": "test.sh $#[BKRY_BUILD_VARIANT]",
+                    "clean": "test.sh clean"
+                }
+            }
+        }"#;
+        let temp_dir: TempDir =
+            TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
+        let work_dir: PathBuf = temp_dir.into_path();
+        let build_dir: PathBuf = work_dir.join("build");
+        let mut mocked_system: MockSystem = MockSystem::new();
+        mocked_system
+            .expect_check_call()
+            .with(mockall::predicate::eq(CallParams {
+                cmd_line: Helper::cmd_line_string(&format!(
+                    "cd {} && test.sh release",
+                    &build_dir.to_string_lossy().to_string()
+                )),
+                env: HashMap::from([(String::from("BKRY_WORKSPACE_ID"), WsId::get())]),
+                shell: true,
+            }))
+            .once()
+            .returning(|_x| Ok(()));
+        mocked_system.expect_env().returning(|| HashMap::new());
+        let _result: Result<(), BError> = helper_test_build_subcommand(
+            json_ws_settings,
+            json_build_config,
+            &work_dir,
+            Box::new(BLogger::new()),
+            Box::new(mocked_system),
+            vec![
+                "bakery",
+                "build",
+                "--config",
+                "default",
+                "--variant",
+                "release",
+            ],
+        );
+    }
+
+    #[test]
+    fn test_cmd_build_docker() {
+        let json_ws_settings: &str = r#"
+        {
+            "version": "5",
+            "builds": {
+                "supported": [
+                    "default"
+                ]
+            }
+        }"#;
+        let json_build_config: &str = r#"
+        {
+            "version": "5",
+            "name": "default",
+            "description": "Test Description",
+            "arch": "test-arch",
+            "tasks": {
+                "task-name": {
+                    "index": "1",
+                    "name": "task-name",
+                    "type": "non-bitbake",
+                    "builddir": "test-dir",
+                    "build": "test.sh",
+                    "clean": "rm -rf test-dir"
+                }
+            }
+        }
+        "#;
+        let temp_dir: TempDir =
+            TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
+        let work_dir: PathBuf = temp_dir.into_path();
+        let docker_image: DockerImage = DockerImage::new(&format!(
+            "{}/{}:{}",
+            BkryConstants::DOCKER_REGISTRY,
+            BkryConstants::DOCKER_IMAGE,
+            BkryConstants::DOCKER_TAG
+        ))
+        .expect("Invalid docker image format");
+        let mut mocked_system: MockSystem = MockSystem::new();
+        mocked_system.expect_inside_docker().returning(|| false);
+        mocked_system
+            .expect_check_call()
+            .with(mockall::predicate::eq(CallParams {
+                cmd_line: Helper::docker_pull_string(&docker_image),
+                env: HashMap::new(),
+                shell: true,
+            }))
+            .once()
+            .returning(|_x| Ok(()));
+        mocked_system
+            .expect_exists()
+            .with(mockall::predicate::always())
+            .times(1..10)
+            .returning(|_x| true);
+        mocked_system
+            .expect_check_call()
+            .with(mockall::predicate::eq(CallParams {
+                cmd_line: Helper::docker_bootstrap_string(
+                    true,
+                    &vec![],
+                    &vec![],
+                    &work_dir.clone(),
+                    &work_dir,
+                    &docker_image,
+                    &vec![
+                        String::from("bakery"),
+                        String::from("build"),
+                        String::from("--config"),
+                        String::from("default"),
+                    ],
+                ),
+                env: HashMap::new(),
+                shell: true,
+            }))
+            .once()
+            .returning(|_x| Ok(()));
+        mocked_system
+            .expect_init_env_file()
+            .returning(|_x, _y| Ok(HashMap::new()));
+        mocked_system.expect_env().returning(|| HashMap::new());
+        let _result: Result<(), BError> = helper_test_build_subcommand(
+            json_ws_settings,
+            json_build_config,
+            &work_dir,
+            Box::new(BLogger::new()),
+            Box::new(mocked_system),
+            vec!["bakery", "build", "--config", "default"],
+        );
+    }
+
+    /*
+     * In this test we are adding volumes as docker args to the workspace.json.
+     * But we are also adding some volumes as args to the bakery build command.
+     * One is valid and one is invalid in the workspace.json and we are making sure
+     * we print the warning about the invalid volume and that we are calling the
+     * expected docker call.
+     */
+    #[test]
+    fn test_cmd_build_docker_volumes() {
+        let json_ws_settings: &str = r#"
+        {
+            "version": "5",
+            "builds": {
+                "supported": [
+                    "default"
+                ]
+            },
+            "docker": {
+                "args": [
+                    "-v /test/testdir2:/test/testdir2",
+                    "-v :"
+                ]
+            }
+        }"#;
+        let json_build_config: &str = r#"
+        {
+            "version": "5",
+            "name": "default",
+            "description": "Test Description",
+            "arch": "test-arch",
+            "tasks": {
+                "task-name": {
+                    "index": "1",
+                    "name": "task-name",
+                    "builddir": "test-dir",
+                    "build": "test.sh",
+                    "clean": "rm -rf test-dir"
+                }
+            }
+        }
+        "#;
+        let temp_dir: TempDir =
+            TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
+        let work_dir: PathBuf = temp_dir.into_path();
+        let docker_image: DockerImage = DockerImage::new(&format!(
+            "{}/{}:{}",
+            BkryConstants::DOCKER_REGISTRY,
+            BkryConstants::DOCKER_IMAGE,
+            BkryConstants::DOCKER_TAG
+        ))
+        .expect("Invalid docker image format");
+        let mut mocked_system: MockSystem = MockSystem::new();
+        let mut mocked_logger: MockLogger = MockLogger::new();
+        mocked_logger
+            .expect_info()
+            .with(mockall::predicate::always())
+            .times(1..10)
+            .returning(|_x| ());
+        mocked_logger
+            .expect_warn()
+            .with(mockall::predicate::eq(
+                "invalid docker volume '-v :'".to_string(),
+            ))
+            .once()
+            .returning(|_x| ());
+        mocked_system.expect_inside_docker().returning(|| false);
+        mocked_system
+            .expect_check_call()
+            .with(mockall::predicate::eq(CallParams {
+                cmd_line: Helper::docker_pull_string(&docker_image),
+                env: HashMap::new(),
+                shell: true,
+            }))
+            .once()
+            .returning(|_x| Ok(()));
+        mocked_system
+            .expect_exists()
+            .with(mockall::predicate::always())
+            .times(1..11)
+            .returning(|_x| true);
+        mocked_system
+            .expect_check_call()
+            .with(mockall::predicate::eq(CallParams {
+                cmd_line: Helper::docker_bootstrap_string(
+                    true,
+                    &vec![String::from("-v /test/testdir2:/test/testdir2")],
+                    &vec![String::from("/test/testdir1:/test/testdir1")],
+                    &work_dir.clone(),
+                    &work_dir,
+                    &docker_image,
+                    &vec![
+                        String::from("bakery"),
+                        String::from("build"),
+                        String::from("--config"),
+                        String::from("default"),
+                        String::from("-v"),
+                        String::from("/test/testdir1:/test/testdir1"),
+                    ],
+                ),
+                env: HashMap::new(),
+                shell: true,
+            }))
+            .once()
+            .returning(|_x| Ok(()));
+        mocked_system
+            .expect_init_env_file()
+            .returning(|_x, _y| Ok(HashMap::new()));
+        mocked_system.expect_env().returning(|| HashMap::new());
+        let _result: Result<(), BError> = helper_test_build_subcommand(
+            json_ws_settings,
+            json_build_config,
+            &work_dir,
+            Box::new(mocked_logger),
+            Box::new(mocked_system),
+            vec![
+                "bakery",
+                "build",
+                "--config",
+                "default",
+                "-v",
+                "/test/testdir1:/test/testdir1",
+            ],
+        );
+    }
+
+    #[test]
+    fn test_cmd_build_pipeline() {
+        let json_ws_settings: &str = r#"
+        {
+            "version": "5",
+            "builds": {
+                "supported": [
+                    "default"
+                ]
+            },
+            "docker": {
+                "disabled": "true"
+            }
+        }"#;
+        let json_build_config: &str = r#"
+        {
+            "version": "5",
+            "name": "default",
+            "description": "Test Description",
+            "arch": "test-arch",
+            "tasks": {
+                "task-name": {
+                    "index": "1",
+                    "name": "task-name",
+                    "builddir": "test-dir",
+                    "build": "test.sh $#[BKRY_PIPELINE_MODE]",
+                    "clean": "rm -rf test-dir"
+                }
+            }
+        }
+        "#;
+        let temp_dir: TempDir =
+            TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
+        let work_dir: PathBuf = temp_dir.into_path();
+        let build_dir: PathBuf = work_dir.join("test-dir");
+        let mut env: HashMap<String, String> = HashMap::new();
+        env.insert(String::from("BKRY_WORKSPACE_ID"), WsId::get());
+        let mut mocked_system: MockSystem = MockSystem::new();
+        mocked_system
+            .expect_check_call()
+            .with(mockall::predicate::eq(CallParams {
+                cmd_line: Helper::cmd_line_string(&format!(
+                    "cd {} && test.sh true",
+                    &build_dir.to_string_lossy().to_string()
+                )),
+                env: HashMap::from([(String::from("BKRY_WORKSPACE_ID"), WsId::get())]),
+                shell: true,
+            }))
+            .once()
+            .returning(|_x| Ok(()));
+        mocked_system
+            .expect_init_env_file()
+            .returning(|_x, _y| Ok(HashMap::new()));
+        mocked_system.expect_env().returning(|| HashMap::new());
+        let _result: Result<(), BError> = helper_test_build_subcommand(
+            json_ws_settings,
+            json_build_config,
+            &work_dir,
+            Box::new(BLogger::new()),
+            Box::new(mocked_system),
+            vec!["bakery", "build", "--config", "default", "--pipeline"],
+        );
+    }
 }

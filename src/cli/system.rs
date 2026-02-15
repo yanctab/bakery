@@ -50,6 +50,9 @@ pub trait System {
     fn rmdir_all(&self, path: &PathBuf) -> Result<(), BError>;
     fn env(&self) -> HashMap<String, String>;
     fn inside_docker(&self) -> bool;
+    fn list_dirs(&self, path: &PathBuf) -> Result<Vec<PathBuf>, BError>;
+    fn mkdir(&self, path: &PathBuf) -> Result<(), BError>;
+    fn exists(&self, path: &PathBuf) -> bool;
 }
 
 pub struct BSystem {}
@@ -185,6 +188,40 @@ impl System for BSystem {
         }
 
         env
+    }
+
+    fn list_dirs(&self, path: &PathBuf) -> Result<Vec<PathBuf>, BError> {
+        let entries: ReadDir = fs::read_dir(path)?;
+
+        // Filter and collect directories
+        let mut directories: Vec<PathBuf> = Vec::new();
+        for entry in entries {
+            match entry {
+                Ok(entry) => {
+                    if entry.path().is_dir() {
+                        // Collect the directory path
+                        directories.push(entry.path());
+                    }
+                }
+                Err(e) => {
+                    return Err(BError::IOError(format!(
+                        "File '{}' dose not exists",
+                        e.to_string()
+                    )));
+                }
+            }
+        }
+
+        Ok(directories)
+    }
+
+    fn exists(&self, path: &PathBuf) -> bool {
+        path.exists()
+    }
+
+    fn mkdir(&self, path: &PathBuf) -> Result<(), BError> {
+        fs::create_dir_all(path)?;
+        Ok(())
     }
 }
 

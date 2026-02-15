@@ -16,3 +16,4 @@ release, dev, test for example.
 13. Add --verbose flag and make sure that we get usefull debug information printed.
 14. Add support for locking workspace. When running bkry setup the workspace should be locked to the config. We will have to also add a new sub-command bakery lock so it is possible to lock a workspace to a different config and we should be able to reset the build config also. This will need the meta-data support and workspace ID to work. We need to make sure that it is possible to call bkry build without a build config but if there is no workspace meta-data then it should be required.
 15. Add support for user specific workspace.json. This will require that our merging of the workspace.json is fully working.
+16. Refactor how we setup the env make sure we have one way to setup the env

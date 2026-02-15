@@ -1,4 +1,5 @@
 use indexmap::IndexMap;
+use once_cell::sync::OnceCell;
 
 use crate::cli::Cli;
 use crate::commands::{BBaseCommand, BCommand, BError};
@@ -15,20 +16,20 @@ pub struct ListCommand {
 }
 
 impl BCommand for ListCommand {
-    fn get_config_name(&self, cli: &Cli) -> String {
-        if let Some(sub_matches) = cli.get_args().subcommand_matches(BCOMMAND) {
-            if sub_matches.contains_id("config") {
-                if let Some(value) = sub_matches.get_one::<String>("config") {
-                    return value.clone();
-                }
-            }
-        }
-
-        return String::from("default");
-    }
-
     fn cmd_str(&self) -> &str {
         &self.cmd.cmd_str
+    }
+
+    fn cmd_type(&self) -> &str {
+        &BCOMMAND
+    }
+
+    fn set_cfg_arg_specified(&self, value: bool) {
+        self.cmd.cfg_arg_available.set(value);
+    }
+
+    fn was_cfg_arg_specified(&self) -> bool {
+        self.cmd.cfg_arg_available.get().unwrap().clone()
     }
 
     fn subcommand(&self) -> &clap::Command {
@@ -37,6 +38,10 @@ impl BCommand for ListCommand {
 
     fn is_docker_required(&self) -> bool {
         self.cmd.require_docker
+    }
+
+    fn args_required(&self) -> bool {
+        self.cmd.args_required
     }
 
     fn execute(&self, cli: &Cli, workspace: &mut Workspace) -> Result<(), BError> {
@@ -137,6 +142,8 @@ impl ListCommand {
                 sub_cmd: subcmd,
                 interactive: true,
                 require_docker: false,
+                cfg_arg_available: OnceCell::new(),
+                args_required: true,
             },
         }
     }
@@ -152,7 +159,9 @@ mod tests {
     use crate::commands::{BCommand, ListCommand};
     use crate::constants::BkryConstants;
     use crate::error::BError;
-    use crate::workspace::{Workspace, WsBuildConfigHandler, WsSettingsHandler};
+    use crate::workspace::{
+        Workspace, WsBuildConfigHandler, WsBuildMetadataHandler, WsSettingsHandler,
+    };
 
     fn env_home() -> String {
         match std::env::var_os("HOME") {
@@ -180,12 +189,18 @@ mod tests {
             WsSettingsHandler::from_str(work_dir, json_ws_settings, None)?;
         let config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_build_config, &settings)?;
-        let mut workspace: Workspace =
-            Workspace::new(Some(work_dir.to_owned()), Some(settings), Some(config))?;
+        let metadata: WsBuildMetadataHandler =
+            WsBuildMetadataHandler::new(work_dir, &work_dir.join(PathBuf::from(".bkry")), None);
+        let mut workspace: Workspace = Workspace::new(
+            Some(work_dir.to_owned()),
+            Some(settings),
+            Some(config),
+            Some(metadata),
+        )?;
         let cli: Cli = Cli::new(
             Box::new(mlogger),
             Box::new(msystem),
-            clap::Command::new("bakery"),
+            clap::Command::new("bkry"),
             Some(cmd_line),
         );
         let cmd: ListCommand = ListCommand::new();

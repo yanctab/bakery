@@ -110,7 +110,14 @@ impl<'a> TaskExecuter for BBBuildExecuter<'a> {
             if !docker_str.is_empty() {
                 let image: DockerImage = DockerImage::new(docker_str)?;
                 let docker: Docker = Docker::new(image, interactive);
-                docker.run_cmd(&mut cmd_line, &env, &exec_dir, &self.cli)?;
+                docker.run_cmd(
+                    &mut cmd_line,
+                    &self.cli,
+                    &exec_dir,
+                    &vec![],
+                    &vec![],
+                    args_env_variables,
+                )?;
             } else {
                 self.cli.check_call(&cmd_line, &env, true)?;
             }
@@ -153,7 +160,14 @@ impl<'a> TaskExecuter for BBBuildExecuter<'a> {
             if !docker_str.is_empty() {
                 let image: DockerImage = DockerImage::new(docker_str)?;
                 let docker: Docker = Docker::new(image, interactive);
-                docker.run_cmd(&mut cmd_line, &env, &exec_dir, &self.cli)?;
+                docker.run_cmd(
+                    &mut cmd_line,
+                    &self.cli,
+                    &exec_dir,
+                    &vec![],
+                    &vec![],
+                    args_env_variables,
+                )?;
             } else {
                 self.cli.check_call(&cmd_line, &env, true)?;
             }

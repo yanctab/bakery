@@ -1,6 +1,9 @@
 use crate::constants::BkryConstants;
 use crate::data::WsBuildData;
-use crate::workspace::{Workspace, WsArtifactsHandler, WsBuildConfigHandler, WsSettingsHandler};
+use crate::workspace::{
+    Workspace, WsArtifactsHandler, WsBuildConfigHandler, WsBuildMetadataHandler, WsId,
+    WsSettingsHandler,
+};
 
 use crate::configs::WsSettings;
 use crate::error::BError;
@@ -48,7 +51,7 @@ impl Helper {
             .expect("Failed to create cache dir!");
         let default_settings: &str = r#"
         {
-            "version": "5"
+            "version": "6"
         }"#;
         Helper::write_json_conf(&work_dir.join(BkryConstants::WS_SETTINGS), default_settings);
     }
@@ -255,6 +258,39 @@ impl Helper {
         }
     }
 
+    pub fn setup_test_ws(work_dir: &Path, settings_file: &str) {
+        std::fs::create_dir_all(work_dir.join("configs")).expect("Failed to create config dir!");
+        std::fs::create_dir_all(work_dir.join("configs/include"))
+            .expect("Failed to create include dir!");
+        std::fs::create_dir_all(work_dir.join("builds")).expect("Failed to create builds dir!");
+        std::fs::create_dir_all(work_dir.join("artifacts"))
+            .expect("Failed to create artifacts dir!");
+        std::fs::create_dir_all(work_dir.join("scripts")).expect("Failed to create scripts dir!");
+        std::fs::create_dir_all(work_dir.join("docker")).expect("Failed to create docker dir!");
+        std::fs::create_dir_all(work_dir.join(".cache")).expect("Failed to create cache dir!");
+        /*
+         * Because we have to change the default values for these three settings to
+         * "workspace": {
+         *       "configsdir": "/etc/bkry/configs",
+         *       "includedir": "/etc/bkry/configs/include",
+         *       "scriptsdir": "/opt/bkry/scripts"
+         *  }
+         * The tests needs to be adjusted because these default dirs should not be used when
+         * running the tests they are external resources that should not be used as part of the test
+         * I don't want to mock them because we actually want to test the calls.
+         */
+        let default_settings: &str = r#"
+        {
+            "version": "6",
+            "workspace": {
+                "configsdir": "configs",
+                "includedir": "configs/include",
+                "scriptsdir": "scripts"
+            }
+        }"#;
+        Helper::write_json_conf(&work_dir.join(settings_file), default_settings);
+    }
+
     pub fn setup_ws(
         test_work_dir: &str,
         json_settings: &str,
@@ -269,8 +305,15 @@ impl Helper {
         let config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_build_config, &mut settings)
                 .expect("Failed to parse build config");
-        Workspace::new(Some(work_dir), Some(settings), Some(config))
-            .expect("Failed to setup workspace")
+        let metadata: WsBuildMetadataHandler =
+            WsBuildMetadataHandler::new(&work_dir, &work_dir.join(PathBuf::from(".bkry")), None);
+        Workspace::new(
+            Some(work_dir.to_owned()),
+            Some(settings),
+            Some(config),
+            Some(metadata),
+        )
+        .expect("Failed to setup workspace")
     }
 
     pub fn setup_build_data(
@@ -463,6 +506,11 @@ impl Helper {
         cmd_line.push(format!("{}", image));
         cmd_line.append(&mut cmd.clone());
         //println!("cmd_line {:?}", cmd_line);
+        cmd_line
+    }
+
+    pub fn cmd_line_string(cmd: &String) -> Vec<String> {
+        let cmd_line: Vec<String> = cmd.split_whitespace().map(|c| c.to_string()).collect();
         cmd_line
     }
 }

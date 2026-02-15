@@ -1,3 +1,4 @@
+use regex::Regex;
 use std::collections::HashMap;
 use std::fmt;
 use std::fs::File;
@@ -68,6 +69,19 @@ impl DockerImage {
  * TODO: we should convert Docker into a TaskExecuter
  */
 impl Docker {
+    fn replace_env_variables(&self, input: &str, env: &HashMap<String, String>) -> String {
+        // Regular expression to match ${VAR}
+        let re: Regex = Regex::new(r"\$\{(\w+)\}").unwrap();
+
+        // Replace all occurrences of ${VAR} with the corresponding value from the env map
+        let result = re.replace_all(input, |caps: &regex::Captures| {
+            let var_name: &str = &caps[1]; // Get the variable name without ${}
+            env.get(var_name).unwrap_or(&"".to_string()).to_string() // Return "" if not found
+        });
+
+        result.to_string()
+    }
+
     fn env_home(&self) -> String {
         match std::env::var_os("HOME") {
             Some(var) => {
@@ -83,117 +97,100 @@ impl Docker {
     }
 
     fn user(&self) -> Vec<String> {
-        vec![
-            String::from("-u"),
-            format!("{}:{}", users::get_current_uid(), users::get_current_gid()),
-        ]
+        vec![format!(
+            "-u {}:{}",
+            users::get_current_uid(),
+            users::get_current_gid()
+        )]
     }
 
     fn etc_files(&self) -> Vec<String> {
         vec![
-            String::from("-v"),
-            String::from("/etc/passwd:/etc/passwd:ro"),
-            String::from("-v"),
-            String::from("/etc/group:/etc/group:ro"),
+            String::from("-v /etc/passwd:/etc/passwd:ro"),
+            String::from("-v /etc/group:/etc/group:ro"),
         ]
     }
 
-    fn bakery(&self) -> Vec<String> {
+    fn hidden_home_files(&self) -> Vec<String> {
         vec![
-            String::from("-v"),
-            String::from(format!(
-                "{}:{}:ro",
-                BkryConstants::BKRY_BIN,
-                BkryConstants::BKRY_BIN
-            )),
-            String::from("-v"),
-            String::from(format!(
-                "{}:{}:ro",
-                BkryConstants::BKRY_CFG_DIR,
-                BkryConstants::BKRY_CFG_DIR
-            )),
-            String::from("-v"),
-            String::from(format!(
-                "{}:{}:ro",
-                BkryConstants::BKRY_OPT_DIR,
-                BkryConstants::BKRY_OPT_DIR
-            )),
-        ]
-    }
-
-    fn _hidden_home_files(&self) -> Vec<String> {
-        vec![
-            String::from("-v"),
             format!(
-                "{}/.gitconfig:{}/.gitconfig:rw",
+                "-v {}/.gitconfig:{}/.gitconfig:rw",
                 self.env_home(),
                 self.env_home()
             ),
-            String::from("-v"),
-            format!("{}/.ssh:{}/.ssh:rw", self.env_home(), self.env_home()),
-            String::from("-v"),
-            format!("{}/.docker:{}/.docker", self.env_home(), self.env_home()),
-            String::from("-v"),
-            format!("{}/.bakery:{}/.bakery", self.env_home(), self.env_home()),
+            format!("-v {}/.ssh:{}/.ssh:rw", self.env_home(), self.env_home()),
+            format!("-v {}/.docker:{}/.docker", self.env_home(), self.env_home()),
+            format!("-v {}/.bkry:{}/.bkry", self.env_home(), self.env_home()),
+        ]
+    }
+
+    fn bkry_volumes(&self) -> Vec<String> {
+        vec![
+            format!(
+                "-v {}:{}:ro",
+                BkryConstants::BKRY_BIN,
+                BkryConstants::BKRY_BIN
+            ),
+            format!(
+                "-v {}:{}:ro",
+                BkryConstants::BKRY_CFG_DIR,
+                BkryConstants::BKRY_CFG_DIR
+            ),
+            format!(
+                "-v {}:{}:ro",
+                BkryConstants::BKRY_OPT_DIR,
+                BkryConstants::BKRY_OPT_DIR
+            ),
         ]
     }
 
     fn home_dir(&self) -> Vec<String> {
-        vec![
-            String::from("-v"),
-            format!("{}:{}", self.env_home(), self.env_home()),
-        ]
+        vec![format!("-v {}:{}", self.env_home(), self.env_home())]
     }
 
     fn work_dir(&self, dir: &PathBuf) -> Vec<String> {
-        vec![String::from("-w"), format!("{}", dir.display())]
+        vec![format!("-w {}", dir.display())]
     }
 
     fn docker_sock(&self) -> Vec<String> {
-        vec![
-            String::from("-v"),
-            String::from("/var/run/docker.sock:/var/run/docker.sock"),
-        ]
+        vec![String::from("-v /var/run/docker.sock:/var/run/docker.sock")]
     }
 
     fn group(&self) -> Vec<String> {
         let cache: users::UsersCache = users::UsersCache::new();
-        vec![
-            String::from("--group-add"),
-            cache.get_group_by_name("docker").unwrap().gid().to_string(),
-        ]
+        vec![format!(
+            "--group-add {}",
+            cache.get_group_by_name("docker").unwrap().gid().to_string()
+        )]
+    }
+
+    fn env_variables(&self) -> Vec<String> {
+        vec![format!("-e HOME={}", self.env_home())]
     }
 
     fn env_file(&self, env_file: &PathBuf) -> Vec<String> {
-        vec![
-            String::from("--env-file"),
-            env_file.to_string_lossy().to_string(),
-        ]
+        vec![format!(
+            "--env-file {}",
+            env_file.to_string_lossy().to_string()
+        )]
     }
 
     fn volumes(&self, volumes: &Vec<String>) -> Vec<String> {
         let mut v: Vec<String> = Vec::new();
         volumes.iter().for_each(|e| {
-            v.append(&mut vec![String::from("-v"), e.to_string()]);
+            v.append(&mut vec![format!("-v {}", e.to_string())]);
         });
-        v.append(&mut self.bakery());
         v.append(&mut self.etc_files());
         v.append(&mut self.docker_sock());
         v
     }
 
     fn container_name(&self, name: &str) -> Vec<String> {
-        vec![
-            String::from("--name"),
-            format!("{}-{}", name, std::process::id()),
-        ]
+        vec![format!("--name {}-{}", name, std::process::id())]
     }
 
     fn top_dir(&self, dir: &PathBuf) -> Vec<String> {
-        vec![
-            String::from("-v"),
-            format!("{}:{}", dir.display(), dir.display()),
-        ]
+        vec![format!("-v {}:{}", dir.display(), dir.display())]
     }
 
     pub fn inside_docker() -> bool {
@@ -217,10 +214,9 @@ impl Docker {
     pub fn bootstrap_cmd_line(
         &self,
         cmd_line: &Vec<String>,
-        docker_top_dir: &PathBuf,
         work_dir: &PathBuf,
-        docker_args: &Vec<String>,
-        volumes: &Vec<String>,
+        args: &mut Vec<String>,
+        volumes: &mut Vec<String>,
     ) -> Vec<String> {
         let mut docker_cmd: Vec<String> = vec!["docker".to_string(), "run".to_string()];
         docker_cmd.append(&mut self.container_name("bakery-workspace"));
@@ -229,15 +225,14 @@ impl Docker {
             docker_cmd.push("-i".to_string());
         }
         docker_cmd.append(&mut self.group());
-        docker_cmd.append(&mut self.volumes(volumes));
         docker_cmd.append(&mut self.user());
-        docker_cmd.append(&mut self.top_dir(docker_top_dir));
+        docker_cmd.append(&mut self.env_variables());
         docker_cmd.append(&mut self.work_dir(work_dir));
-        if !docker_args.is_empty() {
-            docker_cmd.append(&mut docker_args.clone());
-        }
+        docker_cmd.append(args);
+        docker_cmd.append(volumes);
         docker_cmd.push(format!("{}", self.image));
         docker_cmd.append(&mut cmd_line.clone());
+        //println!("bootstrap cmd line: {:?}", docker_cmd);
         docker_cmd
     }
 
@@ -288,7 +283,131 @@ impl Docker {
         Ok(())
     }
 
-    pub fn bootstrap_bakery(
+    pub fn validate_volumes(&self, cli: &Cli, volumes: &mut Vec<String>) {
+        /*
+         * The user can define a set of docker arguments in the workspace.json in the
+         * args json node. If the --volume/-v containes a bad format then docker could create
+         * a dir that will be owned by root. We need to validate all --volume/-v entries
+         * to avoid it. The user can also set a --volume/-v using an env variable e.g.
+         * -v ${ENV_VARIABLE}/test:${ENV_VARIABLE}/test this will be expanded and if
+         * ENV_VARIABLE is not defined then docker call will break. We need to support this
+         * even if it is not ideal and simply skip the --volume/-v entry in that case.
+         * We will print out a warning message and remove it from the list of volumes.
+         */
+        volumes.retain(|v| {
+            cli.debug(format!("Validate docker volume '{}'", v));
+            let parts: Vec<&str> = v.split_whitespace().collect();
+            if parts.len() < 2 {
+                cli.warn(format!("invalid docker volume '{}'", v));
+                return false;
+            }
+
+            let volume_part: &str = parts[1];
+            let v_path: &str = volume_part
+                .split(':')
+                .next()
+                .ok_or_else(|| {
+                    cli.warn(format!("invalid docker volume '{}'", v));
+                    return false;
+                })
+                .unwrap();
+
+            if v_path.is_empty() {
+                cli.warn(format!("invalid docker volume '{}'", v));
+                return false;
+            }
+
+            cli.debug(format!("Valid docker volume '{}'", v));
+            true
+        });
+    }
+
+    pub fn prepare_volumes(&self, cli: &Cli, volumes: &Vec<String>) -> Result<(), BError> {
+        /*
+         * The user can define a set of docker arguments in the workspace.json in the
+         * args json node . We need to check if the volume dir exists and create
+         * it to avoid docker from creating it because then it will be owned by root.
+         */
+        for v in volumes.iter() {
+            cli.debug(format!("process docker volume arg: '{}'", v));
+            let parts: Vec<&str> = v.split_whitespace().collect();
+            if parts.len() < 2 {
+                return Err(BError::DockerVolumeError(format!(
+                    "Invalid docker volume arg '{}'",
+                    v
+                )));
+            }
+
+            let volume_part: &str = parts[1];
+            let v_path: &str = volume_part.split(':').next().ok_or_else(|| {
+                BError::DockerVolumeError(format!("Invalid docker volume arg '{}'", v))
+            })?;
+
+            if v_path.is_empty() {
+                return Err(BError::DockerVolumeError(format!(
+                    "Missing path to docker volume '{}'",
+                    v
+                )));
+            }
+
+            let volume_path: PathBuf = PathBuf::from(v_path);
+
+            cli.debug(format!("prepare docker volume path: {:?}", volume_path));
+
+            if !cli.exists(&volume_path) {
+                let result: Result<(), BError> = cli.mkdir(&volume_path);
+                if result.is_err() {
+                    return Err(BError::DockerVolumeError(format!(
+                        "Failed to mkdir docker volume with err '{:?}'",
+                        result.err()
+                    )));
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn copy_volumes(&self, args: &mut Vec<String>, volumes: &mut Vec<String>) {
+        /*
+         * The docker args can be extended from workspace.json and any --volume/-v needs to be
+         * added to the docker volume args and then be removed from the args list.
+         */
+        args.retain(|e| {
+            if e.contains("-v") || e.contains("--volume") {
+                volumes.push(e.to_string());
+                return false;
+            }
+            true
+        });
+    }
+
+    pub fn bootstrap_volumes(
+        &self,
+        docker_top_dir: &PathBuf,
+        volumes: &Vec<String>,
+    ) -> Vec<String> {
+        let mut docker_args: Vec<String> = vec![];
+        docker_args.append(&mut self.top_dir(docker_top_dir));
+        docker_args.append(&mut self.home_dir());
+        docker_args.append(&mut self.volumes(volumes));
+        docker_args.append(&mut self.bkry_volumes());
+        docker_args
+    }
+
+    pub fn expand_env_variables(
+        &self,
+        cli: &Cli,
+        env: &HashMap<String, String>,
+        args: &mut Vec<String>,
+    ) {
+        for arg in args.iter_mut() {
+            cli.debug(format!("expand: {}", arg));
+            *arg = self.replace_env_variables(arg, env);
+        }
+    }
+
+    pub fn bootstrap_bkry(
         &self,
         cmd_line: &Vec<String>,
         cli: &Cli,
@@ -298,32 +417,58 @@ impl Docker {
         volumes: &Vec<String>,
         env: &HashMap<String, String>,
     ) -> Result<(), BError> {
-        if self.pull(cli).is_err() {
-            cli.debug(format!("Failed to pull the Docker image '{}'.", self.image));
-        }
+        let mut docker_volumes: Vec<String> = vec![];
+        let mut args: Vec<String> = docker_args.clone();
+
+        cli.debug(format!("docker args: {:?}", docker_args));
+        cli.debug(format!("docker volumes: {:?}", volumes));
+
+        /*
+         * Expand any env variables in docker args
+         */
+        self.expand_env_variables(cli, env, &mut args);
+        /*
+         * Copy volumes from the docker args into the docker volumes vector
+         */
+        self.copy_volumes(&mut args, &mut docker_volumes);
+        /*
+         * Validate all the docker volumes removing invalid --volumes that we
+         * might have after expanding the env variables
+         */
+        self.validate_volumes(cli, &mut docker_volumes);
+        docker_volumes.append(&mut self.bootstrap_volumes(docker_top_dir, volumes));
+        /*
+         * Prepare the volumes by creating the dir if not already existing
+         */
+        self.prepare_volumes(cli, &docker_volumes)?;
 
         cli.check_call(
-            &self.bootstrap_cmd_line(cmd_line, docker_top_dir, work_dir, docker_args, volumes),
+            &self.bootstrap_cmd_line(cmd_line, work_dir, &mut args, &mut docker_volumes),
             &env,
             true,
         )?;
+
         Ok(())
     }
 
     pub fn run_cmd(
         &self,
         cmd_line: &Vec<String>,
-        env: &HashMap<String, String>,
-        exec_dir: &PathBuf,
         cli: &Cli,
+        exec_dir: &PathBuf,
+        _docker_args: &Vec<String>,
+        _volumes: &Vec<String>,
+        env: &HashMap<String, String>,
     ) -> Result<(), BError> {
         let temp_dir: TempDir = TempDir::new("bakery")?;
         let env_file_path: PathBuf = self.setup_env_file(temp_dir.path(), env)?;
+
         cli.check_call(
             &self.cmd_line(cmd_line, &env_file_path, exec_dir),
             &HashMap::new(),
             true,
         )?;
+
         Ok(())
     }
 }
@@ -336,6 +481,8 @@ mod tests {
     use std::path::PathBuf;
     use tempdir::TempDir;
 
+    use crate::cli::*;
+    use crate::error::BError;
     use crate::executers::{Docker, DockerImage};
     use crate::helper::Helper;
 
@@ -379,18 +526,17 @@ mod tests {
             String::from("&&"),
             String::from("test"),
         ];
-        let volumes: Vec<String> = vec![];
         let interactive: bool = false;
-        let docker_args: Vec<String> = vec![];
         let image: DockerImage =
             DockerImage::new("test-registry/test-image:0.1").expect("Invalid docker image format");
         let docker: Docker = Docker::new(image.clone(), interactive);
+        let volumes: Vec<String> = vec![];
+        let mut docker_args: Vec<String> = vec![];
         let result: Vec<String> = docker.bootstrap_cmd_line(
             &test_cmd,
-            &docker_top_dir,
             &work_dir,
-            &docker_args,
-            &volumes,
+            &mut docker_args,
+            &mut docker.bootstrap_volumes(&docker_top_dir, &volumes),
         );
         let cmd_line: Vec<String> = Helper::docker_bootstrap_string(
             interactive,
@@ -417,18 +563,17 @@ mod tests {
             String::from("&&"),
             String::from("test"),
         ];
-        let volumes: Vec<String> = vec![];
         let interactive: bool = true;
-        let docker_args: Vec<String> = vec![];
         let image: DockerImage =
             DockerImage::new("test-registry/test-image:0.1").expect("Invalid docker image format");
         let docker: Docker = Docker::new(image.clone(), interactive);
+        let volumes: Vec<String> = vec![];
+        let docker_args: Vec<String> = vec![];
         let result: Vec<String> = docker.bootstrap_cmd_line(
             &test_cmd,
-            &docker_top_dir,
             &work_dir,
-            &docker_args,
-            &volumes,
+            &mut docker_args.clone(),
+            &mut docker.bootstrap_volumes(&docker_top_dir, &volumes),
         );
         let cmd_line: Vec<String> = Helper::docker_bootstrap_string(
             interactive,
@@ -455,18 +600,17 @@ mod tests {
             String::from("&&"),
             String::from("test"),
         ];
-        let volumes: Vec<String> = vec![];
         let interactive: bool = false;
-        let docker_args: Vec<String> = vec![String::from("--test"), String::from("test")];
         let image: DockerImage =
             DockerImage::new("test-registry/test-image:0.1").expect("Invalid docker image format");
         let docker: Docker = Docker::new(image.clone(), interactive);
+        let volumes: Vec<String> = vec![];
+        let docker_args: Vec<String> = vec![String::from("--test"), String::from("test")];
         let result: Vec<String> = docker.bootstrap_cmd_line(
             &test_cmd,
-            &docker_top_dir,
             &work_dir,
-            &docker_args,
-            &volumes,
+            &mut docker_args.clone(),
+            &mut docker.bootstrap_volumes(&docker_top_dir, &volumes),
         );
         let cmd_line: Vec<String> = Helper::docker_bootstrap_string(
             interactive,
@@ -493,18 +637,17 @@ mod tests {
             String::from("&&"),
             String::from("test"),
         ];
-        let volumes: Vec<String> = vec![String::from("/test/testdir:/test/testdir")];
         let interactive: bool = false;
-        let docker_args: Vec<String> = vec![];
         let image: DockerImage =
             DockerImage::new("test-registry/test-image:0.1").expect("Invalid docker image format");
         let docker: Docker = Docker::new(image.clone(), interactive);
+        let volumes: Vec<String> = vec![String::from("/test/testdir:/test/testdir")];
+        let mut docker_args: Vec<String> = vec![];
         let result: Vec<String> = docker.bootstrap_cmd_line(
             &test_cmd,
-            &docker_top_dir,
             &work_dir,
-            &docker_args,
-            &volumes,
+            &mut docker_args,
+            &mut docker.bootstrap_volumes(&docker_top_dir, &volumes),
         );
         let cmd_line: Vec<String> = Helper::docker_bootstrap_string(
             interactive,
@@ -531,18 +674,17 @@ mod tests {
             String::from("&&"),
             String::from("test"),
         ];
-        let volumes: Vec<String> = vec![];
         let interactive: bool = false;
-        let docker_args: Vec<String> = vec![];
         let image: DockerImage =
             DockerImage::new("test-registry/test-image:0.1").expect("Invalid docker image format");
         let docker: Docker = Docker::new(image.clone(), interactive);
+        let volumes: Vec<String> = vec![];
+        let mut docker_args: Vec<String> = vec![];
         let result: Vec<String> = docker.bootstrap_cmd_line(
             &test_cmd,
-            &docker_top_dir,
             &work_dir,
-            &docker_args,
-            &volumes,
+            &mut docker_args,
+            &mut docker.bootstrap_volumes(&docker_top_dir, &volumes),
         );
         let cmd_line: Vec<String> = Helper::docker_bootstrap_string(
             interactive,
@@ -632,5 +774,293 @@ TEST_KEY1=TEST_VALUE1
         let cmd_line: Vec<String> =
             Helper::docker_cmdline_string(interactive, &work_dir, &image, &test_cmd, &env_file);
         assert_eq!(result, cmd_line);
+    }
+
+    #[test]
+    fn test_docker_validate_volumes() {
+        let temp_dir: TempDir =
+            TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
+        let work_dir: PathBuf = PathBuf::from(temp_dir.path());
+        let interactive: bool = false;
+        let image: DockerImage =
+            DockerImage::new("test-registry/test-image:0.1").expect("Invalid docker image format");
+        let docker: Docker = Docker::new(image.clone(), interactive);
+        let test_volume_dir: PathBuf = work_dir.join(PathBuf::from("test_build_dir"));
+        let mut volumes: Vec<String> = vec![
+            String::from(format!(
+                "-v {}:{}",
+                test_volume_dir.to_str().unwrap(),
+                test_volume_dir.to_str().unwrap()
+            )),
+            String::from(format!("-v :{}", test_volume_dir.to_str().unwrap())),
+            String::from("-v :"),
+            String::from("-v"),
+            String::from(format!(
+                "--volume {}:{}",
+                test_volume_dir.to_str().unwrap(),
+                test_volume_dir.to_str().unwrap()
+            )),
+            String::from(format!("--volume :{}", test_volume_dir.to_str().unwrap())),
+            String::from("--volume :"),
+            String::from("--volume"),
+        ];
+        let mut mocked_logger: MockLogger = MockLogger::new();
+        mocked_logger
+            .expect_warn()
+            .with(mockall::predicate::eq(format!(
+                "invalid docker volume '-v :{}'",
+                test_volume_dir.to_str().unwrap()
+            )))
+            .once()
+            .returning(|_x| ());
+        mocked_logger
+            .expect_warn()
+            .with(mockall::predicate::eq(
+                "invalid docker volume '-v :'".to_string(),
+            ))
+            .once()
+            .returning(|_x| ());
+        mocked_logger
+            .expect_warn()
+            .with(mockall::predicate::eq(
+                "invalid docker volume '-v'".to_string(),
+            ))
+            .once()
+            .returning(|_x| ());
+        mocked_logger
+            .expect_warn()
+            .with(mockall::predicate::eq(format!(
+                "invalid docker volume '--volume :{}'",
+                test_volume_dir.to_str().unwrap()
+            )))
+            .once()
+            .returning(|_x| ());
+        mocked_logger
+            .expect_warn()
+            .with(mockall::predicate::eq(
+                "invalid docker volume '--volume :'".to_string(),
+            ))
+            .once()
+            .returning(|_x| ());
+        mocked_logger
+            .expect_warn()
+            .with(mockall::predicate::eq(
+                "invalid docker volume '--volume'".to_string(),
+            ))
+            .once()
+            .returning(|_x| ());
+        let cli: Cli = Cli::new(
+            Box::new(mocked_logger),
+            Box::new(BSystem::new()),
+            clap::Command::new("bakery"),
+            None,
+        );
+        docker.validate_volumes(&cli, &mut volumes);
+        assert_eq!(
+            volumes,
+            vec![
+                String::from(format!(
+                    "-v {}:{}",
+                    test_volume_dir.to_str().unwrap(),
+                    test_volume_dir.to_str().unwrap()
+                )),
+                String::from(format!(
+                    "--volume {}:{}",
+                    test_volume_dir.to_str().unwrap(),
+                    test_volume_dir.to_str().unwrap()
+                )),
+            ]
+        )
+    }
+
+    #[test]
+    fn test_docker_copy_volumes() {
+        let temp_dir: TempDir =
+            TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
+        let work_dir: PathBuf = PathBuf::from(temp_dir.path());
+        let interactive: bool = false;
+        let image: DockerImage =
+            DockerImage::new("test-registry/test-image:0.1").expect("Invalid docker image format");
+        let docker: Docker = Docker::new(image.clone(), interactive);
+        let test_volume_dir: PathBuf = work_dir.join(PathBuf::from("test_build_dir"));
+        let mut args: Vec<String> = vec![
+            String::from(format!(
+                "-v {}:{}",
+                test_volume_dir.to_str().unwrap(),
+                test_volume_dir.to_str().unwrap()
+            )),
+            String::from(format!(
+                "--volume {}:{}",
+                test_volume_dir.to_str().unwrap(),
+                test_volume_dir.to_str().unwrap()
+            )),
+            String::from(format!("-w {}", test_volume_dir.to_str().unwrap())),
+            String::from(format!("-e ENV_VAR={}", test_volume_dir.to_str().unwrap())),
+        ];
+        let mut volumes: Vec<String> = vec![];
+        docker.copy_volumes(&mut args, &mut volumes);
+        assert_eq!(
+            volumes,
+            vec![
+                String::from(format!(
+                    "-v {}:{}",
+                    test_volume_dir.to_str().unwrap(),
+                    test_volume_dir.to_str().unwrap()
+                )),
+                String::from(format!(
+                    "--volume {}:{}",
+                    test_volume_dir.to_str().unwrap(),
+                    test_volume_dir.to_str().unwrap()
+                )),
+            ]
+        );
+        assert_eq!(
+            args,
+            vec![
+                String::from(format!("-w {}", test_volume_dir.to_str().unwrap())),
+                String::from(format!("-e ENV_VAR={}", test_volume_dir.to_str().unwrap())),
+            ]
+        )
+    }
+
+    #[test]
+    fn test_docker_prepare_volumes() {
+        let temp_dir: TempDir =
+            TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
+        let work_dir: PathBuf = PathBuf::from(temp_dir.path());
+        let interactive: bool = false;
+        let image: DockerImage =
+            DockerImage::new("test-registry/test-image:0.1").expect("Invalid docker image format");
+        let docker: Docker = Docker::new(image.clone(), interactive);
+        let test_volume_dir: PathBuf = work_dir.join(PathBuf::from("test_build_dir"));
+        let volumes: Vec<String> = vec![String::from(format!(
+            "-v {}:{}",
+            test_volume_dir.to_str().unwrap(),
+            test_volume_dir.to_str().unwrap()
+        ))];
+        let mut mocked_system: MockSystem = MockSystem::new();
+        mocked_system
+            .expect_exists()
+            .with(mockall::predicate::eq(test_volume_dir.clone()))
+            .once()
+            .returning(|_x| false);
+        mocked_system
+            .expect_mkdir()
+            .with(mockall::predicate::eq(test_volume_dir))
+            .once()
+            .returning(|_x| Ok(()));
+        let cli: Cli = Cli::new(
+            Box::new(BLogger::new()),
+            Box::new(mocked_system),
+            clap::Command::new("bakery"),
+            None,
+        );
+        let _result: Result<(), BError> = docker.prepare_volumes(&cli, &volumes);
+    }
+
+    #[test]
+    fn test_docker_prepare_volumes_error_1() {
+        let temp_dir: TempDir =
+            TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
+        let work_dir: PathBuf = PathBuf::from(temp_dir.path());
+        let interactive: bool = false;
+        let image: DockerImage =
+            DockerImage::new("test-registry/test-image:0.1").expect("Invalid docker image format");
+        let docker: Docker = Docker::new(image.clone(), interactive);
+        let test_volume_dir: PathBuf = work_dir.join(PathBuf::from("test_build_dir"));
+        /*
+         * Bad format -v :/path/to/dir should result in error
+         */
+        let volumes: Vec<String> = vec![String::from(format!(
+            "-v :{}",
+            test_volume_dir.to_str().unwrap()
+        ))];
+        let cli: Cli = Cli::new(
+            Box::new(BLogger::new()),
+            Box::new(BSystem::new()),
+            clap::Command::new("bakery"),
+            None,
+        );
+        let result: Result<(), BError> = docker.prepare_volumes(&cli, &volumes);
+        match result {
+            Ok(_) => {
+                // If it returns Ok, the test should fail
+                panic!("Expected an error, but got Ok");
+            }
+            Err(e) => {
+                // Check the error message
+                assert_eq!(
+                    e.to_string(),
+                    format!(
+                        "Missing path to docker volume '-v :{}'",
+                        test_volume_dir.to_str().unwrap()
+                    )
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_docker_prepare_volumes_error_2() {
+        let interactive: bool = false;
+        let image: DockerImage =
+            DockerImage::new("test-registry/test-image:0.1").expect("Invalid docker image format");
+        let docker: Docker = Docker::new(image.clone(), interactive);
+        /*
+         * Bad format --volume should result in error
+         */
+        let volumes: Vec<String> = vec![String::from("--volume")];
+        let cli: Cli = Cli::new(
+            Box::new(BLogger::new()),
+            Box::new(BSystem::new()),
+            clap::Command::new("bakery"),
+            None,
+        );
+        let result: Result<(), BError> = docker.prepare_volumes(&cli, &volumes);
+        match result {
+            Ok(_) => {
+                // If it returns Ok, the test should fail
+                panic!("Expected an error, but got Ok");
+            }
+            Err(e) => {
+                // Check the error message
+                assert_eq!(
+                    e.to_string(),
+                    "Invalid docker volume arg '--volume'".to_string()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_docker_expand_env_variables() {
+        let interactive: bool = false;
+        let image: DockerImage =
+            DockerImage::new("test-registry/test-image:0.1").expect("Invalid docker image format");
+        let docker: Docker = Docker::new(image.clone(), interactive);
+        let cli: Cli = Cli::new(
+            Box::new(BLogger::new()),
+            Box::new(BSystem::new()),
+            clap::Command::new("bakery"),
+            None,
+        );
+        let mut env: HashMap<String, String> = HashMap::new();
+        env.insert("TEST_ENV".to_string(), "/test/dir".to_string());
+        let mut args: Vec<String> = vec![
+            "-v ${TEST_ENV}:${TEST_ENV}".to_string(),
+            "-e TEST_ENV=${TEST_ENV}".to_string(),
+            "-v ${NA}:${NA}".to_string(),
+            "-e NA=${NA}".to_string(),
+        ];
+        docker.expand_env_variables(&cli, &env, &mut args);
+        assert_eq!(
+            args,
+            vec![
+                "-v /test/dir:/test/dir".to_string(),
+                "-e TEST_ENV=/test/dir".to_string(),
+                "-v :".to_string(),
+                "-e NA=".to_string(),
+            ]
+        )
     }
 }

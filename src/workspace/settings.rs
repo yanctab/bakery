@@ -204,13 +204,9 @@ impl WsSettingsHandler {
         Ok(())
     }
 
-    /*
-     * Will be used once we have the logic in place for how to handel
-     * a workspace settings that is per build config. Not sure if it
-     * is a good idea or not so need to test the concept before deciding
-     */
-    pub fn _merge(&mut self, data: &mut WsSettingsHandler) {
-        self.ws_settings.merge(&mut data.config().clone());
+    pub fn merge(&mut self, data: &mut WsSettingsHandler, merge_buildcfg: bool) {
+        self.ws_settings
+            .merge(&mut data.config().clone(), merge_buildcfg);
         self.docker = DockerImage {
             image: self.ws_settings.docker_image.clone(),
             tag: self.ws_settings.docker_tag.clone(),
@@ -444,7 +440,7 @@ mod tests {
     fn test_settings_context() {
         let json_test_str = r#"
         {
-            "version": "5",
+            "version": "6",
             "workspace": {
                 "configsdir": "configs_$#[VAR1]",
                 "includedir": "include_test",
@@ -491,7 +487,7 @@ mod tests {
     fn test_settings_empty_context() {
         let json_test_str = r#"
         {
-            "version": "5",
+            "version": "6",
             "workspace": {
                 "configsdir": "configs_$#[VAR1]",
                 "includedir": "include_test",

@@ -72,13 +72,23 @@ impl Cli {
             cmd.push_str(c);
             cmd.push(' ');
         });
-        self.debug(format!("{}", cmd.as_str().trim_end()));
-        //println!("{}", cmd.as_str().trim_end());
+
+        self.debug(format!("env: {:?}", env));
+        self.debug(format!("cmd: {}", cmd.as_str().trim_end()));
+        /*
+         * Could to have when debugging tests at the moment we cant use
+         * --verbose when running the tests and then these println can
+         * be useful so I am keeping them for now.
+         */
+        println!("check_call: env: {:?}", env);
+        println!("check_call: cmd: {}", cmd.as_str().trim_end());
+
         self.system.check_call(&CallParams {
             cmd_line: cmd_line.to_owned(),
             env: env.to_owned(),
             shell,
         })?;
+
         //self.system.test(String::from(cmd.as_str().trim_end()))?;
         Ok(())
     }
@@ -86,6 +96,19 @@ impl Cli {
     pub fn rmdir_all(&self, path: &PathBuf) -> Result<(), BError> {
         self.system.rmdir_all(path)?;
         Ok(())
+    }
+
+    pub fn exists(&self, path: &PathBuf) -> bool {
+        self.system.exists(path)
+    }
+
+    pub fn mkdir(&self, path: &PathBuf) -> Result<(), BError> {
+        self.system.mkdir(path)?;
+        Ok(())
+    }
+
+    pub fn list_dirs(&self, dir: &PathBuf) -> Result<Vec<PathBuf>, BError> {
+        self.system.list_dirs(dir)
     }
 
     pub fn is_ws_empty(&self, path: &PathBuf) -> Result<bool, BError> {
@@ -164,7 +187,7 @@ impl Cli {
         }
     }
 
-    pub fn _warn(&self, message: String) {
+    pub fn warn(&self, message: String) {
         (*self.logger).warn(message);
     }
 

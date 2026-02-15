@@ -1,3 +1,4 @@
+use crate::commands::Variant;
 pub struct BkryConstants;
 impl BkryConstants {
     pub const _DOCKER_ARGS: [&'static str; 2] = ["--rm=true", "-t"];
@@ -7,7 +8,7 @@ impl BkryConstants {
     pub const _WS_SETTINGS_VERSION: &'static str = "6";
     pub const BUILD_CFG_VERSION: &'static str = "6";
     pub const WS_SETTINGS: &str = "workspace.json";
-    pub const _WS_HIDDEN_SETTINGS: &str = ".workspace.json";
+    pub const WS_HIDDEN_SETTINGS: &str = ".workspace.json";
     pub const BKRY_OPT_DIR: &str = "/opt/bakery";
     pub const BKRY_CFG_DIR: &str = "/etc/bakery";
     pub const BKRY_BIN: &str = "/usr/bin/bakery";
@@ -21,4 +22,5 @@ impl BkryConstants {
     pub const BKRY_DEFAULT_DOCKER_DIR: &str = "docker";
     pub const BKRY_DEFAULT_CACHE_DIR: &str = ".cache";
     pub const BKRY_DEFAULT_SCRIPTS_DIR: &str = "scripts";
+    pub const BKRY_DEFAULT_VARIANT: Variant = Variant::DEV;
 }

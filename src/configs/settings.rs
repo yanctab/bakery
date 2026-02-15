@@ -178,14 +178,47 @@ impl WsSettings {
         Ok(())
     }
 
-    pub fn merge(&mut self, data: &mut WsSettings) {
-        merge_field!(self, data, configs_dir);
-        merge_field!(self, data, include_dir);
-        merge_field!(self, data, builds_dir);
-        merge_field!(self, data, artifacts_dir);
-        merge_field!(self, data, scripts_dir);
-        merge_field!(self, data, docker_dir);
-        merge_field!(self, data, cache_dir);
+    pub fn merge(&mut self, data: &mut WsSettings, merge_buildcfg: bool) {
+        /*
+         * We ended up using the WsSettings for manage the docker settings
+         * in the build config becuase it was easier then manage it by seeting
+         * up a specific handler for the docker settings in the build config.
+         * So if merge_buildcfg is false we skip the merging.
+         */
+        if !merge_buildcfg {
+            /*
+             * If one of the values that we are trying to merge is a default
+             * value then we should skip the merge of that value. The only
+             * use case where this is not ideal is if an user for some reason
+             * wants to overwrite an existing value that is not a default value
+             * with a default value but I think that is a really special usecase.
+             */
+            merge_field!(self, data, mode);
+            if data.configs_dir != BkryConstants::BKRY_DEFAULT_CFG_DIR {
+                merge_field!(self, data, configs_dir);
+            }
+            if data.include_dir != BkryConstants::BKRY_DEFAULT_INCLUDE_CFG_DIR {
+                merge_field!(self, data, include_dir);
+            }
+            if data.scripts_dir != BkryConstants::BKRY_DEFAULT_SCRIPTS_DIR {
+                merge_field!(self, data, scripts_dir);
+            }
+            if data.builds_dir != BkryConstants::BKRY_DEFAULT_BUILDS_DIR {
+                merge_field!(self, data, builds_dir);
+            }
+            if data.artifacts_dir != BkryConstants::BKRY_DEFAULT_ARTIFACTS_DIR {
+                merge_field!(self, data, artifacts_dir);
+            }
+            if data.docker_dir != BkryConstants::BKRY_DEFAULT_DOCKER_DIR {
+                merge_field!(self, data, docker_dir);
+            }
+            if data.cache_dir != BkryConstants::BKRY_DEFAULT_CACHE_DIR {
+                merge_field!(self, data, cache_dir);
+            }
+            if !data.supported.is_empty() {
+                merge_field!(self, data, supported);
+            }
+        }
         merge_field!(self, data, docker_image);
         merge_field!(self, data, docker_tag);
         merge_field!(self, data, docker_registry);
@@ -447,7 +480,7 @@ mod tests {
     fn test_settings_config_docker_work_dir() {
         let json_test_str: &str = r#"
         {
-            "version": "5",
+            "version": "6",
             "docker": {
                 "workdir": "test"
             }
@@ -664,11 +697,11 @@ mod tests {
     fn test_settings_config_merge() {
         let json_test1_str: &str = r#"
         {
-            "version": "5"
+            "version": "6"
         }"#;
         let json_test2_str: &str = r#"
         {
-            "version": "5",
+            "version": "6",
             "workspace": {
                 "configsdir": "configs_test",
                 "includedir": "include_test",
@@ -707,7 +740,7 @@ mod tests {
         );
         assert_eq!(settings1.docker_dir, BkryConstants::BKRY_DEFAULT_DOCKER_DIR);
         assert_eq!(settings1.cache_dir, BkryConstants::BKRY_DEFAULT_CACHE_DIR);
-        settings1.merge(&mut settings2);
+        settings1.merge(&mut settings2, false);
         assert_eq!(settings1.configs_dir, "configs_test");
         assert_eq!(settings1.include_dir, "include_test");
         assert_eq!(settings1.artifacts_dir, "artifacts_test");
@@ -741,7 +774,7 @@ mod tests {
          */
         let json_test1_str: &str = r#"
         {
-            "version": "5",
+            "version": "6",
             "workspace": {
                 "configsdir": "configs_test1",
                 "includedir": "include_test",
@@ -767,7 +800,7 @@ mod tests {
         }"#;
         let json_test2_str: &str = r#"
         {
-            "version": "5",
+            "version": "6",
             "workspace": {
                 "configsdir": "configs_test2",
                 "includedir": "include_test",
@@ -801,7 +834,7 @@ mod tests {
         assert_eq!(settings1.docker_registry, "test-registry");
         assert_eq!(settings1.docker_image, "test-image1");
         assert_eq!(settings1.docker_tag, "test1");
-        settings1.merge(&mut settings2);
+        settings1.merge(&mut settings2, false);
         assert_eq!(settings1.configs_dir, "configs_test2");
         assert_eq!(settings1.include_dir, "include_test");
         assert_eq!(settings1.artifacts_dir, "artifacts_test2");
@@ -827,7 +860,7 @@ mod tests {
     fn test_settings_config_context() {
         let json_test_str: &str = r#"
         {
-            "version": "5",
+            "version": "6",
             "workspace": {
                 "configsdir": "configs_$#[VAR1]",
                 "includedir": "include_test",
@@ -860,5 +893,16 @@ mod tests {
         assert_eq!(settings.artifacts_dir, "artifacts_var2");
         assert_eq!(settings.docker_registry, "test-registry-var3");
         assert_eq!(settings.docker_image, "test-image-var4");
+    }
+
+    #[test]
+    fn test_settings_mode() {
+        let json_test_str = r#"
+        {
+            "version": "6",
+            "mode": "setup"
+        }"#;
+        let settings: WsSettings = Helper::setup_ws_settings(json_test_str);
+        assert_eq!(settings.mode, "setup");
     }
 }

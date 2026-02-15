@@ -5,7 +5,7 @@ use crate::constants::BkryConstants;
 use crate::data::WsContextData;
 use crate::error::BError;
 use crate::fs::ConfigFileReader;
-use crate::workspace::{WsBuildConfigHandler, WsSettingsHandler};
+use crate::workspace::{WsBuildConfigHandler, WsBuildMetadataHandler, WsSettingsHandler};
 
 pub struct WsConfigFileHandler {
     work_dir: PathBuf,
@@ -14,7 +14,14 @@ pub struct WsConfigFileHandler {
 }
 
 impl WsConfigFileHandler {
-    fn _load_settings_from_path(&self, path: &PathBuf) -> Result<WsSettingsHandler, BError> {
+    fn _load_settings_from_path(
+        &self,
+        path: &PathBuf,
+    ) -> Result<Option<WsSettingsHandler>, BError> {
+        if !path.exists() {
+            return Ok(None);
+        }
+
         let settings_str: String = ConfigFileReader::new(path).read_json()?;
         let mut settings: WsSettingsHandler =
             WsSettingsHandler::from_str(&self.work_dir, &settings_str, Some(path.clone()))?;
@@ -23,45 +30,156 @@ impl WsConfigFileHandler {
         let context: WsContextData = WsContextData::new(&indexmap! {})?;
         settings.expand_ctx(context.ctx())?;
 
-        Ok(settings)
+        Ok(Some(settings))
     }
 
-    pub fn new(work_dir: &PathBuf, home_dir: &PathBuf) -> Self {
-        let bkry_home_cfg_dir: PathBuf = home_dir.clone().join(".bakery");
-        let bkry_cfg_dir: PathBuf = PathBuf::from(BkryConstants::BKRY_CFG_DIR);
+    fn _merge(
+        &self,
+        hidden_ws_settings: Option<&mut WsSettingsHandler>,
+        ws_settings: Option<&mut WsSettingsHandler>,
+        usr_settings: Option<&mut WsSettingsHandler>,
+        etc_settings: Option<&mut WsSettingsHandler>,
+    ) -> Result<WsSettingsHandler, BError> {
+        /*
+         * The merge procedure always produces a single settings object. The effective
+         * priority is:
+         *
+         *  - /etc/bkry/workspace.json        (system-wide, lowest priority)
+         *  - ./workspace.json                (workspace-specific)
+         *  - ~/.bkry/workspace.json          (user-specific, highest priority)
+         *
+         * Examples:
+         *  - Case A: only /etc/bkry/workspace.json exists
+         *      -> use /etc/bkry/workspace.json (no merge needed)
+         *
+         *  - Case B: ~/.bkry/workspace.json and /etc/bkry/workspace.json exist
+         *      -> start with /etc/bkry/workspace.json, overlay ~/.bkry/workspace.json
+         *
+         *  - Case C: ./workspace.json, ~/.bkry/workspace.json and /etc/bkry/workspace.json exist
+         *      -> start with /etc/bkry/workspace.json, overlay ~/.bkry/workspace.json,
+         *         then overlay ./workspace.json
+         *
+         *  - Case D: ./workspace.json and /etc/bkry/workspace.json exist
+         *      -> start with /etc/bkry/workspace.json, then overlay ./workspace.json
+         */
+        //println!("hidden: {}, ws: {}, usr: {}, etc: {}", hidden_ws_settings.is_some(), ws_settings.is_some(), usr_settings.is_some(), etc_settings.is_some());
+        match (hidden_ws_settings, ws_settings, usr_settings, etc_settings) {
+            (Some(hidden), None, None, None) => {
+                // Found only .workspace.json in current workspace
+                return Ok(hidden.clone());
+            }
+            (None, Some(ws), None, None) => {
+                // Found only workspac.json in current workspace
+                return Ok(ws.clone());
+            }
+            (None, None, Some(usr), None) => {
+                // Found ~/.bkry/workspace.json
+                return Ok(usr.clone());
+            }
+            (None, None, None, Some(etc)) => {
+                // Found /etc/bkry/workspace.json
+                return Ok(etc.clone());
+            }
+            (None, None, Some(usr), Some(etc)) => {
+                // Found ~/.bkry/workspace.json and /etc/bkry/workspace.json merge and return
+                let mut settings: WsSettingsHandler = etc.clone();
+                settings.merge(usr, false);
+                return Ok(settings);
+            }
+            (None, Some(ws), Some(usr), None) => {
+                // Found ~/.bkry/workspace.json and workspace.json merge and return
+                let mut settings: WsSettingsHandler = ws.clone();
+                settings.merge(usr, false);
+                return Ok(settings);
+            }
+            (None, Some(ws), Some(usr), Some(etc)) => {
+                // Found workspace.json and ~/.bkry/workspace.json merge and return
+                let mut settings: WsSettingsHandler = etc.clone();
+                settings.merge(ws, false);
+                settings.merge(usr, false);
+                return Ok(settings);
+            }
+            (Some(hidden), None, Some(usr), Some(etc)) => {
+                // Found .workspace.json and ~/.bkry/workspace.json merge and return
+                let mut settings: WsSettingsHandler = etc.clone();
+                settings.merge(hidden, false);
+                settings.merge(usr, false);
+                return Ok(settings);
+            }
+            (None, Some(ws), None, Some(etc)) => {
+                // Found workspace.json and /etc/bkry/workspace.json merge and return
+                let mut settings: WsSettingsHandler = etc.clone();
+                settings.merge(ws, false);
+                return Ok(settings);
+            }
+            (Some(hidden), None, None, Some(etc)) => {
+                // Found .workspace.json and /etc/bkry/workspace.json merge and return
+                let mut settings: WsSettingsHandler = etc.clone();
+                settings.merge(hidden, false);
+                return Ok(settings);
+            }
+            (Some(_hidden), Some(ws), None, None) => {
+                // Found .workspace.json and workspace.json ignore the hidden
+                return Ok(ws.clone());
+            }
+            (Some(_hidden), Some(ws), None, Some(etc)) => {
+                // Found .workspace.json and workspace.json and /etc/bkry/workspace.json ignore the hidden and merge
+                let mut settings: WsSettingsHandler = etc.clone();
+                settings.merge(ws, false);
+                return Ok(settings);
+            }
+            _ => {
+                /*
+                 * Return default settings the only thing required is the version the rest
+                 * will be defined by the default values in the settings handler
+                 */
+                let default_settings: &str = r#"{
+                    "version": "6"
+                }"#;
+                return WsSettingsHandler::from_str(&self.work_dir, default_settings, None);
+            }
+        }
+    }
+
+    pub fn new(work_dir: &PathBuf, home_dir: &PathBuf, cfg_dir: &PathBuf) -> Self {
+        let bkry_home_cfg_dir: PathBuf = home_dir.clone().join(".bkry");
         WsConfigFileHandler {
             work_dir: work_dir.clone(),
             bkry_home_cfg_dir,
-            bkry_cfg_dir,
+            bkry_cfg_dir: cfg_dir.clone(),
         }
     }
 
     pub fn ws_settings(&self) -> Result<WsSettingsHandler, BError> {
-        let paths: Vec<PathBuf> = vec![
-            self.work_dir.join(BkryConstants::WS_SETTINGS), // First
-            self.bkry_home_cfg_dir.join(BkryConstants::WS_SETTINGS), // Second
-            self.bkry_cfg_dir.join(BkryConstants::WS_SETTINGS), // Third
-        ];
-
         /*
-         * Iterate over current work/workspace dir, ~/.bakery, /etc/bakery
+         * Load workspace settings from the available workspace.json files and merge them
+         * into the final configuration used by bkry.
+         *
+         * There should always be a system file at /etc/bkry/workspace.json. If there is
+         * no workspace.json in the current directory, bkry is running outside a workspace.
+         *
+         * Possible files (from lowest to highest precedence):
+         *  - /etc/bkry/workspace.json        (system-wide, lowest priority)
+         *  - ./workspace.json                (workspace-specific)
+         *  - ~/.bkry/workspace.json          (user-specific, highest priority)
+         *
          */
-        for path in paths {
-            if path.exists() {
-                // Load the setting from the first existing workspace.json found
-                return self._load_settings_from_path(&path);
-            }
-        }
+        let mut etc_settings: Option<WsSettingsHandler> =
+            self._load_settings_from_path(&self.bkry_cfg_dir.join(BkryConstants::WS_SETTINGS))?;
+        let mut usr_settings: Option<WsSettingsHandler> = self
+            ._load_settings_from_path(&self.bkry_home_cfg_dir.join(BkryConstants::WS_SETTINGS))?;
+        let mut workspace_settings: Option<WsSettingsHandler> =
+            self._load_settings_from_path(&self.work_dir.join(BkryConstants::WS_SETTINGS))?;
+        let mut hidden_workspace_settings: Option<WsSettingsHandler> =
+            self._load_settings_from_path(&self.work_dir.join(BkryConstants::WS_HIDDEN_SETTINGS))?;
+        let settings: WsSettingsHandler = self._merge(
+            hidden_workspace_settings.as_mut(),
+            workspace_settings.as_mut(),
+            usr_settings.as_mut(),
+            etc_settings.as_mut(),
+        )?;
 
-        /*
-         * Return default settings the only thing required is the version the rest
-         * be defined by the settings handler if it is not defined in the json
-         */
-        let default_settings: &str = r#"
-        {
-            "version": "6"
-        }"#;
-        return WsSettingsHandler::from_str(&self.work_dir, default_settings, None);
+        Ok(settings)
     }
 
     fn config_header(&self, config: &WsBuildConfigHandler) -> String {
@@ -69,38 +187,6 @@ impl WsConfigFileHandler {
         let cfg_product_json: String = config.build_data().product().to_string();
         let cfg_header_json: String = format!("{},{}", cfg_product_json, cfg_bitbake_json);
         cfg_header_json.clone()
-    }
-
-    pub fn verify_ws(&self) -> Result<(), BError> {
-        /*
-         * The search order for the workspace settings is:
-         *
-         * 1. Current working directory
-         * 2. ~/.bakery/
-         * 3. /etc/bakery/
-         *
-         * If none of these contain 'workspace.json', return an invalid workspace error.
-         */
-        if !self
-            .work_dir
-            .clone()
-            .join(BkryConstants::WS_SETTINGS)
-            .exists()
-            && !self
-                .bkry_home_cfg_dir
-                .clone()
-                .join(BkryConstants::WS_SETTINGS)
-                .exists()
-            && !self
-                .bkry_cfg_dir
-                .clone()
-                .join(BkryConstants::WS_SETTINGS)
-                .exists()
-        {
-            return Err(BError::InvalidWorkspaceError());
-        }
-
-        Ok(())
     }
 
     pub fn setup_build_config(
@@ -170,7 +256,7 @@ impl WsConfigFileHandler {
             let dummy_config_json: &str = r#"
                 {
                     "version": "6",
-                    "name": "all",
+                    "name": "dummy",
                     "description": "Dummy build config to be able to handle 'list' sub-command",
                     "arch": "NA"
                 }"#;
@@ -178,9 +264,51 @@ impl WsConfigFileHandler {
         }
 
         return Err(BError::ValueError(format!(
-            "No such build config: '{}' does not exist!",
+            "No such build config: '{}' does not exist. Please run 'bkry list' to see a complete list of supported build configurations.",
             build_config.clone().display()
         )));
+    }
+
+    pub fn metadata(
+        &self,
+        _config: &str,
+        settings: &WsSettingsHandler,
+    ) -> Result<WsBuildMetadataHandler, BError> {
+        let metadata: WsBuildMetadataHandler =
+            WsBuildMetadataHandler::new(&settings.work_dir(), &self.bkry_home_cfg_dir, None);
+        Ok(metadata)
+    }
+
+    pub fn verify_ws(&self) -> Result<(), BError> {
+        /*
+         * The search order for the workspace settings is:
+         *
+         * 1. Current working directory
+         * 2. ~/.bkry/
+         * 3. /etc/bkry/
+         *
+         * If none of these contain 'workspace.json', return an invalid workspace error.
+         */
+        if !self
+            .work_dir
+            .clone()
+            .join(BkryConstants::WS_SETTINGS)
+            .exists()
+            && !self
+                .bkry_home_cfg_dir
+                .clone()
+                .join(BkryConstants::WS_SETTINGS)
+                .exists()
+            && !self
+                .bkry_cfg_dir
+                .clone()
+                .join(BkryConstants::WS_SETTINGS)
+                .exists()
+        {
+            return Err(BError::InvalidWorkspaceError());
+        }
+
+        Ok(())
     }
 }
 
@@ -193,6 +321,7 @@ mod tests {
     use crate::configs::WsConfigFileHandler;
     use crate::constants::BkryConstants;
     use crate::error::BError;
+    use crate::executers::DockerImage;
     use crate::helper::Helper;
     use crate::workspace::{
         WsBuildConfigHandler, WsCustomSubCmdHandler, WsSettingsHandler, WsTaskHandler,
@@ -206,12 +335,13 @@ mod tests {
     fn test_cfg_handler_settings_default() {
         let temp_dir: TempDir =
             TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
+        let cfg_dir: PathBuf = PathBuf::from(temp_dir.path().join("etc/bkry"));
         let work_dir: PathBuf = PathBuf::from(temp_dir.path()).join("workspace");
         let home_dir: PathBuf = PathBuf::from(temp_dir.path()).join("home");
         Helper::setup_test_ws_default_dirs(&work_dir);
         let settings_str: &str = r#"
         {
-            "version": "5"
+            "version": "6"
         }"#;
         let settings_path: PathBuf = PathBuf::from(format!(
             "{}/{}",
@@ -221,7 +351,8 @@ mod tests {
         let mut configs: IndexMap<PathBuf, String> = IndexMap::new();
         configs.insert(settings_path, settings_str.to_string());
         Helper::setup_test_build_configs_files(&configs);
-        let cfg_handler: WsConfigFileHandler = WsConfigFileHandler::new(&work_dir, &home_dir);
+        let cfg_handler: WsConfigFileHandler =
+            WsConfigFileHandler::new(&work_dir, &home_dir, &cfg_dir);
         let settings: WsSettingsHandler = cfg_handler
             .ws_settings()
             .expect("Failed parse workspace settings");
@@ -266,20 +397,22 @@ mod tests {
     }
 
     /*
-     * Make sure that
+     * Test that the workspace settings file in the home bkry config dir is used instead
+     * of the one in the root of the workspace/work dir
      */
     #[test]
-    fn test_cfg_handler_settings_home_dir() {
+    fn test_cfg_handler_usr_settings() {
         let temp_dir: TempDir =
-            TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
+            TempDir::new("bkry-test-dir").expect("Failed to create temp directory");
+        let cfg_dir: PathBuf = PathBuf::from(temp_dir.path().join("etc/bkry"));
         let work_dir: PathBuf = PathBuf::from(temp_dir.path()).join("workspace");
         let home_dir: PathBuf = PathBuf::from(temp_dir.path()).join("home");
-        Helper::setup_test_ws_default_dirs(&work_dir);
+        Helper::setup_test_ws(&work_dir, BkryConstants::WS_SETTINGS);
         let ws_settings_1: &str = r#"
         {
             "version": "6",
             "workspace": {
-                "configsdir": "config1_dir"
+                "configsdir": "ws_config_dir"
             }
         }"#;
         Helper::write_json_conf(
@@ -290,32 +423,37 @@ mod tests {
         {
             "version": "6",
             "workspace": {
-                "configsdir": "config2_dir"
+                "configsdir": "usr_config_dir"
             }
         }"#;
         Helper::write_json_conf(
             &home_dir
                 .clone()
-                .join(format!(".bakery/{}", BkryConstants::WS_SETTINGS)),
+                .join(format!(".bkry/{}", BkryConstants::WS_SETTINGS)),
             ws_settings_2,
         );
-        let cfg_handler: WsConfigFileHandler = WsConfigFileHandler::new(&work_dir, &home_dir);
+        let cfg_handler: WsConfigFileHandler =
+            WsConfigFileHandler::new(&work_dir, &home_dir, &cfg_dir);
         let settings: WsSettingsHandler = cfg_handler
             .ws_settings()
             .expect("Failed parse workspace settings");
-        assert_eq!(settings.configs_dir(), work_dir.clone().join("config1_dir"));
+        assert_eq!(
+            settings.configs_dir(),
+            work_dir.clone().join("usr_config_dir")
+        );
     }
 
     /*
-     * Test that the workspace settings file workspace/work dir is used
+     * Test that the workspace settings file under workspace/work dir is used
      */
     #[test]
-    fn test_cfg_handler_settings_work_dir() {
+    fn test_cfg_handler_settings_ws() {
         let temp_dir: TempDir =
-            TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
+            TempDir::new("bkry-test-dir").expect("Failed to create temp directory");
+        let cfg_dir: PathBuf = PathBuf::from(temp_dir.path().join("etc/bkry"));
         let work_dir: PathBuf = PathBuf::from(temp_dir.path()).join("workspace");
         let home_dir: PathBuf = PathBuf::from(temp_dir.path()).join("home");
-        Helper::setup_test_ws_default_dirs(&work_dir);
+        Helper::setup_test_ws(&work_dir, BkryConstants::WS_SETTINGS);
         let ws_settings: &str = r#"
         {
             "version": "6",
@@ -327,11 +465,286 @@ mod tests {
             &work_dir.clone().join(BkryConstants::WS_SETTINGS),
             ws_settings,
         );
-        let cfg_handler: WsConfigFileHandler = WsConfigFileHandler::new(&work_dir, &home_dir);
+        let cfg_handler: WsConfigFileHandler =
+            WsConfigFileHandler::new(&work_dir, &home_dir, &cfg_dir);
         let settings: WsSettingsHandler = cfg_handler
             .ws_settings()
             .expect("Failed parse workspace settings");
         assert_eq!(settings.configs_dir(), work_dir.join("work_dir"));
+    }
+
+    /*
+     * Test that the hidden workspace settings file under workspace/work dir is used
+     */
+    #[test]
+    fn test_cfg_handler_hidden_settings() {
+        let temp_dir: TempDir =
+            TempDir::new("bkry-test-dir").expect("Failed to create temp directory");
+        let cfg_dir: PathBuf = PathBuf::from(temp_dir.path().join("etc/bkry"));
+        let work_dir: PathBuf = PathBuf::from(temp_dir.path()).join("workspace");
+        let home_dir: PathBuf = PathBuf::from(temp_dir.path()).join("home");
+        Helper::setup_test_ws(&work_dir, BkryConstants::WS_HIDDEN_SETTINGS);
+        let ws_settings: &str = r#"
+        {
+            "version": "6",
+            "workspace": {
+                "configsdir": "work_dir"
+            }
+        }"#;
+        Helper::write_json_conf(
+            &work_dir.clone().join(BkryConstants::WS_HIDDEN_SETTINGS),
+            ws_settings,
+        );
+        let cfg_handler: WsConfigFileHandler =
+            WsConfigFileHandler::new(&work_dir, &home_dir, &cfg_dir);
+        let settings: WsSettingsHandler = cfg_handler
+            .ws_settings()
+            .expect("Failed parse workspace settings");
+        assert_eq!(settings.configs_dir(), work_dir.join("work_dir"));
+    }
+
+    /*
+     * Test that the workspace settings file under workspace/work dir is used
+     * over the hidden workspace settings file.
+     */
+    #[test]
+    fn test_cfg_handler_settings_order() {
+        let temp_dir: TempDir =
+            TempDir::new("bkry-test-dir").expect("Failed to create temp directory");
+        let cfg_dir: PathBuf = PathBuf::from(temp_dir.path().join("etc/bkry"));
+        let work_dir: PathBuf = PathBuf::from(temp_dir.path()).join("workspace");
+        let home_dir: PathBuf = PathBuf::from(temp_dir.path()).join("home");
+        /*
+         * Create an default workspace.json in the workspace/work dir this should be the one
+         * picked up by bkry
+         */
+        Helper::setup_test_ws(&work_dir, BkryConstants::WS_SETTINGS);
+        let ws_settings: &str = r#"
+        {
+            "version": "6",
+            "workspace": {
+                "configsdir": "configs"
+            }
+        }"#;
+        /*
+         * Create a .workspace.json in the workspace/work dir this should no be used
+         */
+        Helper::write_json_conf(
+            &work_dir.clone().join(BkryConstants::WS_HIDDEN_SETTINGS),
+            ws_settings,
+        );
+        let cfg_handler: WsConfigFileHandler =
+            WsConfigFileHandler::new(&work_dir, &home_dir, &cfg_dir);
+        let settings: WsSettingsHandler = cfg_handler
+            .ws_settings()
+            .expect("Failed parse workspace settings");
+        /*
+         * The workspace.json under workdir should be used over the .workspace.json
+         * so the configsdir defined in workspace.json should be used and not the
+         * one from .workspace.json
+         */
+        assert_eq!(settings.configs_dir(), work_dir.join("configs"));
+    }
+
+    /*
+     * Make sure that when merge order works as expected. The value from the usr should
+     * be picked up.
+     */
+    #[test]
+    fn test_cfg_handler_merge_all() {
+        let temp_dir: TempDir =
+            TempDir::new("bkry-test-dir").expect("Failed to create temp directory");
+        let cfg_dir: PathBuf = PathBuf::from(temp_dir.path().join("etc/bkry"));
+        let work_dir: PathBuf = PathBuf::from(temp_dir.path()).join("workspace");
+        let home_dir: PathBuf = PathBuf::from(temp_dir.path()).join("home");
+        Helper::setup_test_ws(&work_dir, BkryConstants::WS_SETTINGS);
+        let ws_settings: &str = r#"
+        {
+            "version": "6",
+            "workspace": {
+                "configsdir": "ws_config_dir"
+            }
+        }"#;
+        Helper::write_json_conf(
+            &work_dir.clone().join(BkryConstants::WS_SETTINGS),
+            ws_settings,
+        );
+        let usr_settings: &str = r#"
+        {
+            "version": "6",
+            "workspace": {
+                "configsdir": "usr_config_dir"
+            }
+        }"#;
+        Helper::write_json_conf(
+            &home_dir
+                .clone()
+                .join(format!(".bkry/{}", BkryConstants::WS_SETTINGS)),
+            usr_settings,
+        );
+        let etc_settings: &str = r#"
+        {
+            "version": "6",
+            "workspace": {
+                "configsdir": "etc_config_dir"
+            }
+        }"#;
+        Helper::write_json_conf(
+            &cfg_dir.clone().join(BkryConstants::WS_SETTINGS),
+            etc_settings,
+        );
+        let cfg_handler: WsConfigFileHandler =
+            WsConfigFileHandler::new(&work_dir, &home_dir, &cfg_dir);
+        let settings: WsSettingsHandler = cfg_handler
+            .ws_settings()
+            .expect("Failed parse workspace settings");
+        assert_eq!(
+            settings.configs_dir(),
+            work_dir.clone().join("usr_config_dir")
+        );
+    }
+
+    /*
+     * Make sure that when merge order works as expected. When it comes to the docker
+     * args it is not really a merge done it is simply appending the values.
+     */
+    #[test]
+    fn test_cfg_handler_merge_docker() {
+        let temp_dir: TempDir =
+            TempDir::new("bkry-test-dir").expect("Failed to create temp directory");
+        let cfg_dir: PathBuf = PathBuf::from(temp_dir.path().join("etc/bkry"));
+        let work_dir: PathBuf = PathBuf::from(temp_dir.path()).join("workspace");
+        let home_dir: PathBuf = PathBuf::from(temp_dir.path()).join("home");
+        Helper::setup_test_ws(&work_dir, BkryConstants::WS_SETTINGS);
+        let ws_settings: &str = r#"
+        {
+            "version": "6",
+            "docker": {
+                "registry": "ws",
+                "image": "ws",
+                "tag": "1.1.1",
+                "args": [
+                    "-v ws_vol:ws_vol"
+                ]
+            }
+        }"#;
+        Helper::write_json_conf(
+            &work_dir.clone().join(BkryConstants::WS_SETTINGS),
+            ws_settings,
+        );
+        let usr_settings: &str = r#"
+        {
+            "version": "6",
+            "docker": {
+                "registry": "usr",
+                "image": "usr",
+                "tag": "2.2.2",
+                "args": [
+                    "-v usr_vol:usr_vol"
+                ]
+            }
+        }"#;
+        Helper::write_json_conf(
+            &home_dir
+                .clone()
+                .join(format!(".bkry/{}", BkryConstants::WS_SETTINGS)),
+            usr_settings,
+        );
+        let etc_settings: &str = r#"
+        {
+            "version": "6",
+            "docker": {
+                "registry": "etc",
+                "image": "etc",
+                "tag": "3.3.3",
+                "args": [
+                    "-v etc_vol:etc_vol"
+                ]
+            }
+        }"#;
+        Helper::write_json_conf(
+            &cfg_dir.clone().join(BkryConstants::WS_SETTINGS),
+            etc_settings,
+        );
+        let cfg_handler: WsConfigFileHandler =
+            WsConfigFileHandler::new(&work_dir, &home_dir, &cfg_dir);
+        let settings: WsSettingsHandler = cfg_handler
+            .ws_settings()
+            .expect("Failed parse workspace settings");
+        assert_eq!(
+            format!("{}", settings.docker_image()),
+            format!("{}", DockerImage::new("usr/usr:2.2.2").expect("error"))
+        );
+        assert_eq!(
+            settings.docker_args(),
+            &vec![
+                "-v etc_vol:etc_vol".to_string(),
+                "-v ws_vol:ws_vol".to_string(),
+                "-v usr_vol:usr_vol".to_string()
+            ]
+        );
+    }
+
+    /*
+     * Make sure that the merge is working. When it comes to the supported
+     * builds we should never pick it up from the user specific workspace.json
+     * unless they have specifically added a new set of supported builds.
+     */
+    #[test]
+    fn test_cfg_handler_merge_builds() {
+        let temp_dir: TempDir =
+            TempDir::new("bkry-test-dir").expect("Failed to create temp directory");
+        let cfg_dir: PathBuf = PathBuf::from(temp_dir.path().join("etc/bkry"));
+        let work_dir: PathBuf = PathBuf::from(temp_dir.path()).join("workspace");
+        let home_dir: PathBuf = PathBuf::from(temp_dir.path()).join("home");
+        let usr_settings: &str = r#"
+        {
+            "version": "6"
+        }"#;
+        Helper::write_json_conf(
+            &home_dir
+                .clone()
+                .join(format!(".bkry/{}", BkryConstants::WS_SETTINGS)),
+            usr_settings,
+        );
+        Helper::setup_test_ws(&work_dir, BkryConstants::WS_SETTINGS);
+        let ws_settings: &str = r#"
+        {
+            "version": "6",
+            "builds": {
+                "supported": [
+                    "ws_config1",
+                    "ws_config2"
+                ]
+            }
+        }"#;
+        Helper::write_json_conf(
+            &work_dir.clone().join(BkryConstants::WS_SETTINGS),
+            ws_settings,
+        );
+        let etc_settings: &str = r#"
+        {
+            "version": "6",
+            "builds": {
+                "supported": [
+                    "etc_config1",
+                    "etc_config2"
+                ]
+            }
+        }"#;
+        Helper::write_json_conf(
+            &cfg_dir.clone().join(BkryConstants::WS_SETTINGS),
+            etc_settings,
+        );
+        let cfg_handler: WsConfigFileHandler =
+            WsConfigFileHandler::new(&work_dir, &home_dir, &cfg_dir);
+        let settings: WsSettingsHandler = cfg_handler
+            .ws_settings()
+            .expect("Failed parse workspace settings");
+        assert_eq!(
+            settings.config().supported,
+            vec!["ws_config1".to_string(), "ws_config2".to_string()]
+        );
     }
 
     /*
@@ -340,11 +753,13 @@ mod tests {
     #[test]
     fn test_cfg_handler_build_config() {
         let temp_dir: TempDir =
-            TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
+            TempDir::new("bkry-test-dir").expect("Failed to create temp directory");
+        let cfg_dir: PathBuf = PathBuf::from(temp_dir.path().join("etc/bkry"));
         let work_dir: PathBuf = PathBuf::from(temp_dir.path()).join("workspace");
         let home_dir: PathBuf = PathBuf::from(temp_dir.path()).join("home");
-        Helper::setup_test_ws_default_dirs(&work_dir);
-        let cfg_handler: WsConfigFileHandler = WsConfigFileHandler::new(&work_dir, &home_dir);
+        Helper::setup_test_ws(&work_dir, BkryConstants::WS_SETTINGS);
+        let cfg_handler: WsConfigFileHandler =
+            WsConfigFileHandler::new(&work_dir, &home_dir, &cfg_dir);
         let settings: WsSettingsHandler = cfg_handler
             .ws_settings()
             .expect("Failed parse workspace settings");
@@ -357,7 +772,7 @@ mod tests {
             Err(e) => {
                 assert_eq!(
                     e.to_string(),
-                    String::from("No such build config: 'invalid.json' does not exist!")
+                    String::from("No such build config: 'invalid.json' does not exist. Please run 'bkry list' to see a complete list of supported build configurations.")
                 );
             }
         }
@@ -369,11 +784,13 @@ mod tests {
     #[test]
     fn test_cfg_handler_ws_root_build_config() {
         let temp_dir: TempDir =
-            TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
+            TempDir::new("bkry-test-dir").expect("Failed to create temp directory");
+        let cfg_dir: PathBuf = PathBuf::from(temp_dir.path().join("etc/bkry"));
         let work_dir: PathBuf = PathBuf::from(temp_dir.path()).join("workspace");
         let home_dir: PathBuf = PathBuf::from(temp_dir.path()).join("home");
-        Helper::setup_test_ws_default_dirs(&work_dir);
-        let cfg_handler: WsConfigFileHandler = WsConfigFileHandler::new(&work_dir, &home_dir);
+        Helper::setup_test_ws(&work_dir, BkryConstants::WS_SETTINGS);
+        let cfg_handler: WsConfigFileHandler =
+            WsConfigFileHandler::new(&work_dir, &home_dir, &cfg_dir);
         let settings: WsSettingsHandler = cfg_handler
             .ws_settings()
             .expect("Failed parse workspace settings");
@@ -411,11 +828,13 @@ mod tests {
     #[test]
     fn test_cfg_handler_ws_configs_build_config() {
         let temp_dir: TempDir =
-            TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
+            TempDir::new("bkry-test-dir").expect("Failed to create temp directory");
+        let cfg_dir: PathBuf = PathBuf::from(temp_dir.path().join("etc/bkry"));
         let work_dir: PathBuf = PathBuf::from(temp_dir.path()).join("workspace");
         let home_dir: PathBuf = PathBuf::from(temp_dir.path()).join("home");
-        Helper::setup_test_ws_default_dirs(&work_dir);
-        let cfg_handler: WsConfigFileHandler = WsConfigFileHandler::new(&work_dir, &home_dir);
+        Helper::setup_test_ws(&work_dir, BkryConstants::WS_SETTINGS);
+        let cfg_handler: WsConfigFileHandler =
+            WsConfigFileHandler::new(&work_dir, &home_dir, &cfg_dir);
         let settings: WsSettingsHandler = cfg_handler
             .ws_settings()
             .expect("Failed parse workspace settings");
@@ -440,10 +859,12 @@ mod tests {
     fn test_cfg_handler_ws_include_configs() {
         let temp_dir: TempDir =
             TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
+        let cfg_dir: PathBuf = PathBuf::from(temp_dir.path().join("etc/bkry"));
         let work_dir: PathBuf = PathBuf::from(temp_dir.path()).join("workspace");
         let home_dir: PathBuf = PathBuf::from(temp_dir.path()).join("home");
         Helper::setup_test_ws_default_dirs(&work_dir);
-        let cfg_handler: WsConfigFileHandler = WsConfigFileHandler::new(&work_dir, &home_dir);
+        let cfg_handler: WsConfigFileHandler =
+            WsConfigFileHandler::new(&work_dir, &home_dir, &cfg_dir);
         let settings: WsSettingsHandler = cfg_handler
             .ws_settings()
             .expect("Failed parse workspace settings");

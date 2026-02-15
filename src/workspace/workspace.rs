@@ -7,14 +7,28 @@ use std::path::PathBuf;
 use crate::data::{WsContextData, WsProductData};
 use crate::error::BError;
 use crate::fs::ConfigFileReader;
-use crate::workspace::{WsBuildConfigHandler, WsSettingsHandler};
+use crate::workspace::{WsBuildConfigHandler, WsBuildMetadataHandler, WsSettingsHandler};
 
 pub struct Workspace {
     config: WsBuildConfigHandler,
     configs: IndexMap<PathBuf, String>,
+    metadata: WsBuildMetadataHandler,
 }
 
 impl Workspace {
+    fn setup_metadata(
+        work_dir: &PathBuf,
+        metadata: Option<WsBuildMetadataHandler>,
+    ) -> WsBuildMetadataHandler {
+        match metadata {
+            Some(ws_metadata) => ws_metadata,
+            None => {
+                let home_dir: PathBuf = dirs::home_dir().expect("Failed to get home directory");
+                WsBuildMetadataHandler::new(work_dir, &home_dir.join(PathBuf::from(".bkry")), None)
+            }
+        }
+    }
+
     fn setup_work_directory(work_dir: &Option<PathBuf>) -> PathBuf {
         let path_buf: PathBuf = PathBuf::new();
         match work_dir {
@@ -147,14 +161,20 @@ impl Workspace {
         workdir: Option<PathBuf>,
         settings: Option<WsSettingsHandler>,
         config: Option<WsBuildConfigHandler>,
+        metadata: Option<WsBuildMetadataHandler>,
     ) -> Result<Self, BError> {
         let work_dir: PathBuf = Self::setup_work_directory(&workdir);
-        let mut settings: WsSettingsHandler = Self::setup_settings(work_dir, settings);
+        let mut settings: WsSettingsHandler = Self::setup_settings(work_dir.clone(), settings);
         let config: WsBuildConfigHandler = Self::setup_config(&mut settings, config);
         let configs: IndexMap<PathBuf, String> =
             Self::setup_list_of_available_configs(&settings, &config)?;
+        let metadata: WsBuildMetadataHandler = Self::setup_metadata(&work_dir, metadata);
 
-        Ok(Workspace { config, configs })
+        Ok(Workspace {
+            config,
+            configs,
+            metadata,
+        })
     }
 
     pub fn settings(&self) -> &WsSettingsHandler {
@@ -163,6 +183,10 @@ impl Workspace {
 
     pub fn config(&self) -> &WsBuildConfigHandler {
         &self.config
+    }
+
+    pub fn metadata(&self) -> &WsBuildMetadataHandler {
+        &self.metadata
     }
 
     // Returns a dictionary including all build configurations names
@@ -214,16 +238,40 @@ mod tests {
     use crate::constants::BkryConstants;
     use crate::executers::DockerImage;
     use crate::helper::Helper;
-    use crate::workspace::Workspace;
+    use crate::workspace::{Workspace, WsBuildMetadataHandler, WsSettingsHandler};
 
     #[test]
     fn test_workspace_default() {
         let temp_dir: TempDir =
-            TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
+            TempDir::new("bkry-test-dir").expect("Failed to create temp directory");
         let test_work_dir: &Path = temp_dir.path();
-        Helper::setup_test_ws_default_dirs(test_work_dir);
-        let ws: Workspace = Workspace::new(Some(PathBuf::from(test_work_dir)), None, None)
-            .expect("Failed to setup workspace");
+        let settings_str = r#"
+        {
+            "version": "6",
+            "workspace": {
+                "configsdir": "configs",
+                "includedir": "configs/include",
+                "scriptsdir": "scripts"
+            }
+        }"#;
+        Helper::setup_test_ws(test_work_dir, BkryConstants::WS_SETTINGS);
+        let settings: WsSettingsHandler = WsSettingsHandler::new(
+            test_work_dir.to_path_buf(),
+            Helper::setup_ws_settings(settings_str),
+            None,
+        );
+        let metadata: WsBuildMetadataHandler = WsBuildMetadataHandler::new(
+            &test_work_dir.to_path_buf(),
+            &test_work_dir.join(PathBuf::from(".bkry")),
+            None,
+        );
+        let ws: Workspace = Workspace::new(
+            Some(PathBuf::from(test_work_dir)),
+            Some(settings),
+            None,
+            Some(metadata),
+        )
+        .expect("Failed to setup workspace");
         assert_eq!(
             ws.settings().builds_dir(),
             test_work_dir.join(BkryConstants::BKRY_DEFAULT_BUILDS_DIR)
@@ -269,6 +317,15 @@ mod tests {
         let temp_dir: TempDir =
             TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
         let test_work_dir: &Path = temp_dir.path();
+        let settings_str = r#"
+        {
+            "version": "6",
+            "workspace": {
+                "configsdir": "configs",
+                "includedir": "configs/include",
+                "scriptsdir": "scripts"
+            }
+        }"#;
         let mut configs: IndexMap<PathBuf, String> = IndexMap::new();
         let config1_str: &str = r#"
         {
@@ -298,8 +355,23 @@ mod tests {
         configs.insert(config2_path, config2_str.to_string());
         Helper::setup_test_ws_default_dirs(test_work_dir);
         Helper::setup_test_build_configs_files(&configs);
-        let ws: Workspace = Workspace::new(Some(PathBuf::from(test_work_dir)), None, None)
-            .expect("Failed to setup workspace");
+        let settings: WsSettingsHandler = WsSettingsHandler::new(
+            test_work_dir.to_path_buf(),
+            Helper::setup_ws_settings(settings_str),
+            None,
+        );
+        let metadata: WsBuildMetadataHandler = WsBuildMetadataHandler::new(
+            &test_work_dir.to_path_buf(),
+            &test_work_dir.join(PathBuf::from(".bkry")),
+            None,
+        );
+        let ws: Workspace = Workspace::new(
+            Some(PathBuf::from(test_work_dir)),
+            Some(settings),
+            None,
+            Some(metadata),
+        )
+        .expect("Failed to setup workspace");
         assert!(!ws.build_configs().is_empty());
         ws.build_configs().iter().for_each(|(config, description)| {
             // We cannot garanty the order
@@ -324,11 +396,16 @@ mod tests {
         let test_work_dir: &str = "/test_work_dir";
         let json_settings: &str = r#"
         {
-            "version": "6",
+            "version": "4",
             "builds": {
                 "supported": [
                     "default"
                 ]
+            },
+            "workspace": {
+                "configsdir": "configs",
+                "includedir": "configs/include",
+                "scriptsdir": "scripts"
             }
         }"#;
         let json_build_config: &str = r#"
@@ -424,6 +501,15 @@ mod tests {
         let temp_dir: TempDir =
             TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
         let test_work_dir: &Path = temp_dir.path();
+        let settings_str = r#"
+        {
+            "version": "6",
+            "workspace": {
+                "configsdir": "configs",
+                "includedir": "configs/include",
+                "scriptsdir": "scripts"
+            }
+        }"#;
         let mut configs: IndexMap<PathBuf, String> = IndexMap::new();
         let config_str: &str = r#"
         {
@@ -438,10 +524,25 @@ mod tests {
             PathBuf::from(test_work_dir).display()
         ));
         configs.insert(config_path, config_str.to_string());
-        Helper::setup_test_ws_default_dirs(test_work_dir);
+        Helper::setup_test_ws(test_work_dir, BkryConstants::WS_SETTINGS);
+        let settings: WsSettingsHandler = WsSettingsHandler::new(
+            test_work_dir.to_path_buf(),
+            Helper::setup_ws_settings(settings_str),
+            None,
+        );
         Helper::setup_test_build_configs_files(&configs);
-        let ws: Workspace = Workspace::new(Some(PathBuf::from(test_work_dir)), None, None)
-            .expect("Failed to setup workspace");
+        let metadata: WsBuildMetadataHandler = WsBuildMetadataHandler::new(
+            &test_work_dir.to_path_buf(),
+            &test_work_dir.join(PathBuf::from(".bkry")),
+            None,
+        );
+        let ws: Workspace = Workspace::new(
+            Some(PathBuf::from(test_work_dir)),
+            Some(settings),
+            None,
+            Some(metadata),
+        )
+        .expect("Failed to setup workspace");
         assert!(!ws.build_configs().is_empty());
         let (path, description) = ws.build_configs().first().unwrap();
         assert_eq!(path.as_path(), test_work_dir.join("configs/test-name.json"));

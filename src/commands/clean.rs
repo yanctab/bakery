@@ -1,11 +1,11 @@
 use indexmap::IndexMap;
+use once_cell::sync::OnceCell;
 use std::collections::HashMap;
 
 use crate::cli::Cli;
 use crate::commands::{BBaseCommand, BCommand};
 use crate::data::WsContextData;
 use crate::error::BError;
-use crate::executers::Docker;
 use crate::workspace::{Mode, Workspace, WsTaskHandler};
 
 static BCOMMAND: &str = "clean";
@@ -16,20 +16,20 @@ pub struct CleanCommand {
 }
 
 impl BCommand for CleanCommand {
-    fn get_config_name(&self, cli: &Cli) -> String {
-        if let Some(sub_matches) = cli.get_args().subcommand_matches(BCOMMAND) {
-            if sub_matches.contains_id("config") {
-                if let Some(value) = sub_matches.get_one::<String>("config") {
-                    return value.clone();
-                }
-            }
-        }
-
-        return String::from("default");
-    }
-
     fn cmd_str(&self) -> &str {
         &self.cmd.cmd_str
+    }
+
+    fn cmd_type(&self) -> &str {
+        &BCOMMAND
+    }
+
+    fn set_cfg_arg_specified(&self, value: bool) {
+        self.cmd.cfg_arg_available.set(value);
+    }
+
+    fn was_cfg_arg_specified(&self) -> bool {
+        self.cmd.cfg_arg_available.get().unwrap().clone()
     }
 
     fn subcommand(&self) -> &clap::Command {
@@ -40,24 +40,18 @@ impl BCommand for CleanCommand {
         self.cmd.require_docker
     }
 
+    fn args_required(&self) -> bool {
+        self.cmd.args_required
+    }
+
     fn execute(&self, cli: &Cli, workspace: &mut Workspace) -> Result<(), BError> {
-        let config: String = self.get_arg_str(cli, "config", BCOMMAND)?;
+        let config: String = self.get_config(cli, &workspace.settings().work_dir())?;
         let ctx: Vec<String> = self.get_arg_many(cli, "ctx", BCOMMAND)?;
         let tasks: Vec<String> = self.get_arg_many(cli, "tasks", BCOMMAND)?;
         let args_context: IndexMap<String, String> = self.setup_context(ctx);
         let context: WsContextData = WsContextData::new(&args_context)?;
         let interactive: bool = self.get_arg_bool(cli, "interactive", BCOMMAND)?;
-
-        if !workspace.valid_config(config.as_str()) {
-            return Err(BError::CliError(format!(
-                "Unsupported build config '{}'",
-                config
-            )));
-        }
-
-        if workspace.settings().mode() == Mode::SETUP {
-            return Err(BError::CmdInsideWorkspace(self.cmd.cmd_str.to_string()));
-        }
+        let env: Vec<String> = self.get_arg_many(cli, "env", BCOMMAND)?;
 
         /*
          * If Docker is enabled in the workspace settings, Bakery will be bootstrapped into
@@ -69,7 +63,26 @@ impl BCommand for CleanCommand {
             && self.is_docker_required()
             && !cli.inside_docker()
         {
-            return self.bootstrap(&cli.get_cmd_line(), cli, workspace, &vec![], interactive);
+            return self.bootstrap(
+                &self.get_cmd_line(cli, &config, None),
+                cli,
+                workspace,
+                &vec![],
+                interactive,
+            );
+        }
+
+        if workspace.settings().mode() == Mode::SETUP {
+            return Err(BError::ExecuteCmdInsideWorkspace(
+                self.cmd.cmd_str.to_string(),
+            ));
+        }
+
+        if !workspace.valid_config(config.as_str()) {
+            return Err(BError::CliError(format!(
+                "Unsupported build config '{}'",
+                config
+            )));
         }
 
         /*
@@ -78,11 +91,7 @@ impl BCommand for CleanCommand {
          */
         workspace.update_ctx(&context)?;
 
-        /*
-         * TODO: we should handle env variables but for now we will just
-         * send in an empty list to the cleaning task
-         */
-        let env_variables: HashMap<String, String> = HashMap::new();
+        let env_variables: HashMap<String, String> = self.setup_env(env);
 
         if tasks.len() > 1 {
             // More then one task was specified on the command line
@@ -130,6 +139,14 @@ impl CleanCommand {
                 .help("The task(s) to clean."),
           )
           .arg(
+            clap::Arg::new("env")
+                .action(clap::ArgAction::Append)
+                .short('e')
+                .long("env")
+                .value_name("KEY=VALUE")
+                .help("Extra variables to add to build env."),
+          )
+          .arg(
             clap::Arg::new("interactive")
                 .short('i')
                 .long("interactive")
@@ -154,6 +171,8 @@ impl CleanCommand {
                 sub_cmd: subcmd,
                 interactive: true,
                 require_docker: true,
+                cfg_arg_available: OnceCell::new(),
+                args_required: true,
             },
         }
     }
@@ -167,10 +186,13 @@ mod tests {
 
     use crate::cli::*;
     use crate::commands::{BCommand, CleanCommand};
+    use crate::constants::BkryConstants;
     use crate::error::BError;
     use crate::executers::DockerImage;
     use crate::helper::Helper;
-    use crate::workspace::{Workspace, WsBuildConfigHandler, WsSettingsHandler};
+    use crate::workspace::{
+        Workspace, WsBuildConfigHandler, WsBuildMetadataHandler, WsId, WsSettingsHandler,
+    };
 
     fn helper_test_clean_subcommand(
         json_ws_settings: &str,
@@ -184,8 +206,14 @@ mod tests {
             WsSettingsHandler::from_str(work_dir, json_ws_settings, None)?;
         let config: WsBuildConfigHandler =
             WsBuildConfigHandler::from_str(json_build_config, &settings)?;
-        let mut workspace: Workspace =
-            Workspace::new(Some(work_dir.to_owned()), Some(settings), Some(config))?;
+        let metadata: WsBuildMetadataHandler =
+            WsBuildMetadataHandler::new(work_dir, &work_dir.join(PathBuf::from(".bkry")), None);
+        let mut workspace: Workspace = Workspace::new(
+            Some(work_dir.to_owned()),
+            Some(settings),
+            Some(config),
+            Some(metadata),
+        )?;
         let cli: Cli = Cli::new(logger, system, clap::Command::new("bakery"), Some(cmd_line));
         let cmd: CleanCommand = CleanCommand::new();
         cmd.execute(&cli, &mut workspace)
@@ -243,7 +271,7 @@ mod tests {
                 .iter()
                 .map(|s| s.to_string())
                 .collect(),
-                env: HashMap::new(),
+                env: HashMap::from([(String::from("BKRY_WORKSPACE_ID"), WsId::get())]),
                 shell: true,
             }))
             .once()
@@ -262,7 +290,7 @@ mod tests {
     fn test_cmd_clean_interactive() {
         let json_ws_settings: &str = r#"
         {
-            "version": "6",
+            "version": "5",
             "builds": {
                 "supported": [
                     "default"
@@ -271,16 +299,15 @@ mod tests {
         }"#;
         let json_build_config: &str = r#"
         {
-            "version": "6",
+            "version": "5",
             "name": "default",
             "description": "Test Description",
             "arch": "test-arch",
-            "bb": {},
             "tasks": {
                 "task-name": {
                     "index": "1",
-                    "name": "task-name",
                     "type": "non-bitbake",
+                    "name": "task-name",
                     "builddir": "test-dir",
                     "build": "test.sh",
                     "clean": "rm -rf dir-to-delete"
@@ -293,8 +320,10 @@ mod tests {
         let work_dir: PathBuf = temp_dir.into_path();
         let mut mocked_system: MockSystem = MockSystem::new();
         let docker_image: DockerImage = DockerImage::new(&format!(
-            "ghcr.io/yanctab/bakery/bakery-workspace:{}",
-            env!("CARGO_PKG_VERSION")
+            "{}/{}:{}",
+            BkryConstants::DOCKER_REGISTRY,
+            BkryConstants::DOCKER_IMAGE,
+            BkryConstants::DOCKER_TAG
         ))
         .expect("Invalid docker image format");
         mocked_system.expect_inside_docker().returning(|| false);
@@ -307,6 +336,11 @@ mod tests {
             }))
             .once()
             .returning(|_x| Ok(()));
+        mocked_system
+            .expect_exists()
+            .with(mockall::predicate::always())
+            .times(1..10)
+            .returning(|_x| true);
         mocked_system
             .expect_check_call()
             .with(mockall::predicate::eq(CallParams {
