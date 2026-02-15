@@ -34,15 +34,15 @@ build-release:
 format:
 	cargo fmt
 
-## test               - Run all tests using cargo
+## test               - Run tests using cargo
 .PHONY: test
 test:
-	cargo test
+	BKRY_PKG_BUILD=test cargo test --locked
 
-## install            - Install bakery under $HOME/.cargo using cargo
-.PHONY: install
-install:
-	cargo install --path .
+## cargo-install      - Install bkry under $HOME/.cargo using cargo
+.PHONY: cargo-install
+cargo-install:
+	cargo install --path --locked .
 
 ## install-deb        - Update the current deb bakery package by building a release, create a deb package and install it on the system
 .PHONY: install-deb

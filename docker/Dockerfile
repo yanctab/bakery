@@ -19,11 +19,11 @@ RUN apt-get update && \
         gcc-multilib \
         build-essential \
         gcc-11 \
-	gcc-11-base \
-	chrpath \
+        gcc-11-base \
+        chrpath \
         socat \
         file \
-	python-is-python3 \
+        python-is-python3 \
         python3-pip \
         xz-utils  \
         locales \
