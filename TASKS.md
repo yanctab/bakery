@@ -2,7 +2,7 @@
 
 ## Implementation
 
-- [ ] **Verify `cargo install thebakery` installs a working `bakery` binary** [packaging] M
+- [x] **Verify `cargo install thebakery` installs a working `bakery` binary** [packaging] M
   - Acceptance: `cargo publish --dry-run --locked` succeeds with zero warnings (fix `catagories` typo and the `license`/`license-file` duplication in `Cargo.toml`), `cargo install --path . --locked` from a clean checkout installs a working `bakery` binary whose `bakery --help` output is verified, the `exclude` list in `Cargo.toml` is audited so the published crate still builds (nothing required at build time from `scripts/`, `docker/`, `tests/`, `Makefile` or dotfiles is needed), it is confirmed whether version `1.1.14` already exists on crates.io and bumped via `make inc-version` if needed, a CI job is added (e.g. in `.github/workflows/buildntest.yml`) that runs `cargo publish --dry-run --locked` and `cargo install --path . --locked` on PRs, and `README.md` documents the `cargo install thebakery` install path for end users; renaming the crate/binary is explicitly out of scope.
   - Depends on: none
   - Modify: /mnt/workspace/mans/bakery/Cargo.toml, /mnt/workspace/mans/bakery/README.md, /mnt/workspace/mans/bakery/.github/workflows/buildntest.yml, /mnt/workspace/mans/bakery/.github/workflows/release.yml, /mnt/workspace/mans/bakery/Makefile
