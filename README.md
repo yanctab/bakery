@@ -15,17 +15,20 @@ Building complex Yocto Project or OpenEmbedded projects can often involve intric
 ### Cargo
 
 If you already have a Rust toolchain installed you can fetch and build
-bakery straight from [crates.io](https://crates.io/crates/thebakery):
+Bakery straight from [crates.io](https://crates.io/crates/bkry):
 
 ```bash
-user@node:/dir$ cargo install thebakery
+user@node:/dir$ cargo install bkry
 ```
 
-This installs the `bakery` binary under `$HOME/.cargo/bin`, so make sure
-that directory is on your `PATH`. Note that the crate name on crates.io
-is `thebakery` while the binary it installs is called `bakery`. A Rust
-toolchain is required at install time; bakery itself still needs Docker
-at runtime (see [Docker](#docker)).
+This installs the `bkry` binary under `$HOME/.cargo/bin`, so make sure
+that directory is on your `PATH`. The crate name on crates.io and the
+binary name are both `bkry`. A Rust toolchain is required at install
+time; Bakery itself still needs Docker at runtime (see [Docker](#docker)).
+
+Note: Bakery was previously published to crates.io as `thebakery` (which
+installed a `bakery` binary). That name is deprecated in favour of
+`bkry`; users should migrate to `cargo install bkry`.
 
 ### Debian Package
 
@@ -33,18 +36,21 @@ Download one of the deb-packages releases.
 
 ```bash
 user@node:/dir$ BAKERY_VERSION=x.y.z
-user@node:/dir$ wget https://github.com/yanctab/bakery/releases/download/v${BAKERY_VERSION}/bakery-x86_64-musl-v${BAKERY_VERSION}.deb
-user@node:/dir$ sudo dpkg -i bakery-x86_64-musl-v${BAKERY_VERSION}.deb
+user@node:/dir$ wget https://github.com/yanctab/bakery/releases/download/v${BAKERY_VERSION}/bkry-x86_64-musl-v${BAKERY_VERSION}.deb
+user@node:/dir$ sudo dpkg -i bkry-x86_64-musl-v${BAKERY_VERSION}.deb
 ```
 
-Because bakery is written in Rust and libc musl bakery is a single binary. It will be installed under /usr/bin.
+Because Bakery is written in Rust and libc musl Bakery is a single
+binary. It will be installed under `/usr/bin/bkry`. A backward-compat
+`/usr/bin/bakery` symlink pointing to `bkry` is also installed so
+existing scripts that still invoke the old `bakery` name keep working.
 
 ## Usage
 
 ```bash
 Build engine for the Yocto/OE
 
-Usage: bakery <COMMAND>
+Usage: bkry <COMMAND>
 
 Commands:
   sync    Sync workspace e.g sync/update git submodules
@@ -67,7 +73,7 @@ For detailed instructions on using each sub-command, please refer to the [sub-co
 
 
 ```bash
-user@node:/dir$ bakery shell -c <config>
+user@node:/dir$ bkry shell -c <config>
 ```
 
 When starting a Bakery shell the config will be selected and used inside the shell. The terminal will present the following information
@@ -96,12 +102,12 @@ For more information on how to use the shell and any sub-command please refere t
 Powered by [starship](https://starship.rs/) requires that your GUI terminal has setup [nerdfonts](https://www.nerdfonts.com/). To enable run
 
 ```bash
-bakery shell -c <build config> --eyecandy
+bkry shell -c <build config> --eyecandy
 ```
 
 ## Build Source Code
 
-Please see [build source code](documentation/build-bakery.md) for information on how to build bakery.
+Please see [build source code](documentation/build-bakery.md) for information on how to build Bakery.
 
 ## Docker
 
@@ -115,14 +121,14 @@ user@node:/dir$ docker run -it ghcr.io/yanctab/bakery/bakery-workspace:${BAKERY_
 
 ## Template Project
 
-To try bakery out the easiest way is to use the template workspace under tests/template-workspace. Run
+To try Bakery out the easiest way is to use the template workspace under tests/template-workspace. Run
 
 ```bash
 user@node:/dir$ cd tests/template-workspace
 user@node:/dir$ git submodule update
 ```
 
-This will pull down poky and together with the workspace and the build config beaglebone black can be built using the bakery workspace shell.
+This will pull down poky and together with the workspace and the build config beaglebone black can be built using the Bakery workspace shell.
 
 ```bash
 user@bakery-vx.y.z[beaglebone]:~/$
@@ -132,7 +138,7 @@ user@bakery-vx.y.z[beaglebone]:~/$
 
 To setup a project from scratch mainly four things are required
 
-* bakery - the bakery tool. Please see [Installation](#Installation)
+* bkry - the Bakery tool. Please see [Installation](#Installation)
 * workspace - the workspace config defining the workspace structure. Please see [Setup Workspace](documentation/workspace-config.md).
 * build config - the build config defining how to build a product. Please see [Build Config](documentation/build-config.md).
 * meta layers - the meta data used by bitbake when producing the artifacts needed by the product. Please see [Meta Layers](documentation/meta-layers.md).

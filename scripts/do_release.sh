@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 VERSION=$(get_bakery_version ${WORK_DIR}/Cargo.toml)
 
-echo "INFO: tag bakery v${VERSION}"
+echo "INFO: tag bkry v${VERSION}"
 git add ${WORK_DIR}/Cargo.toml
 git add ${WORK_DIR}/Cargo.lock
 git commit -m "v${VERSION}"

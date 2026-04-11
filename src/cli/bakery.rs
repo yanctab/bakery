@@ -25,12 +25,12 @@ impl Bakery {
         let cli: Cli = Cli::new(
             Box::new(BLogger::new()),
             Box::new(BSystem::new()),
-            Command::new("bakery")
+            Command::new("bkry")
                 .version(env!("CARGO_PKG_VERSION"))
                 .subcommand_required(true)
                 .arg_required_else_help(true)
                 .about("Build engine for the Yocto/OE using docker")
-                .author("bakery by yanctab(yanctab.com)"),
+                .author("Bakery by yanctab(yanctab.com)"),
             None,
         );
 

@@ -1,7 +1,7 @@
 # /etc/bakery/bkry.bashrc sourced in by /etc/bash.bashrc
 # when running a bakery-workspace
 BKRY_BIN_DIR="/usr/bin"
-BKRY_VERSION=$(${BKRY_BIN_DIR}/bakery --version)
+BKRY_VERSION=$(${BKRY_BIN_DIR}/bkry --version)
 BKRY_VERSION=${BKRY_VERSION##* }
 BKRY_BRANCH=$(cd ${BKRY_WORK_DIR} && git rev-parse --abbrev-ref HEAD)
 
@@ -22,27 +22,27 @@ PATH=${BKRY_BIN_DIR}:${PATH}
 # The BKRY_BUILD_CONFIG will be set by
 # bakery when initializing a workspace shell
 build() {
-     (cd "${BKRY_WORK_DIR}"; "${BKRY_BIN_DIR}/bakery" build -c "${BKRY_BUILD_CONFIG}" "$@")
+     (cd "${BKRY_WORK_DIR}"; "${BKRY_BIN_DIR}/bkry" build -c "${BKRY_BUILD_CONFIG}" "$@")
 }
 
 clean() {
-    (cd "${BKRY_WORK_DIR}"; "${BKRY_BIN_DIR}/bakery" clean -c "${BKRY_BUILD_CONFIG}" "$@")
+    (cd "${BKRY_WORK_DIR}"; "${BKRY_BIN_DIR}/bkry" clean -c "${BKRY_BUILD_CONFIG}" "$@")
 }
 
 deploy() {
-    (cd "${BKRY_WORK_DIR}"; "${BKRY_BIN_DIR}/bakery" deploy -c "${BKRY_BUILD_CONFIG}" "$@")
+    (cd "${BKRY_WORK_DIR}"; "${BKRY_BIN_DIR}/bkry" deploy -c "${BKRY_BUILD_CONFIG}" "$@")
 }
 
 upload() {
-    (cd "${BKRY_WORK_DIR}"; "${BKRY_BIN_DIR}/bakery" upload -c "${BKRY_BUILD_CONFIG}" "$@")
+    (cd "${BKRY_WORK_DIR}"; "${BKRY_BIN_DIR}/bkry" upload -c "${BKRY_BUILD_CONFIG}" "$@")
 }
 
 setup() {
-    (cd "${BKRY_WORK_DIR}"; "${BKRY_BIN_DIR}/bakery" setup -c "${BKRY_BUILD_CONFIG}" "$@")
+    (cd "${BKRY_WORK_DIR}"; "${BKRY_BIN_DIR}/bkry" setup -c "${BKRY_BUILD_CONFIG}" "$@")
 }
 
 sync() {
-    (cd "${BKRY_WORK_DIR}"; "${BKRY_BIN_DIR}/bakery" sync -c "${BKRY_BUILD_CONFIG}" "$@")
+    (cd "${BKRY_WORK_DIR}"; "${BKRY_BIN_DIR}/bkry" sync -c "${BKRY_BUILD_CONFIG}" "$@")
 }
 
 benv() {
@@ -50,7 +50,7 @@ benv() {
 }
 
 help() {
-    (cd "${BKRY_WORK_DIR}"; "${BKRY_BIN_DIR}/bakery" help "$@")
+    (cd "${BKRY_WORK_DIR}"; "${BKRY_BIN_DIR}/bkry" help "$@")
     echo
     echo -e "\e[1;4mBakery Shell:\e[0m"
     echo
@@ -76,26 +76,26 @@ help() {
     echo -e "\e[1;4mUsage:\e[0m <ALIAS>"
     echo
     echo -e "\e[1;4mAliases:\e[0m"
-    echo -e "  \e[1mlist\e[0m     Alias for 'bakery list -c ${BKRY_BUILD_CONFIG}'"
-    echo -e "  \e[1mbuild\e[0m    Alias for 'bakery build -c ${BKRY_BUILD_CONFIG}'"
-    echo -e "  \e[1mclean\e[0m    Alias for 'bakery clean -c ${BKRY_BUILD_CONFIG}'"
-    echo -e "  \e[1msync\e[0m     Alias for 'bakery sync -c ${BKRY_BUILD_CONFIG}'"
-    echo -e "  \e[1msetup\e[0m    Alias for 'bakery setup -c ${BKRY_BUILD_CONFIG}'"
-    echo -e "  \e[1mdeploy\e[0m   Alias for 'bakery deploy -c ${BKRY_BUILD_CONFIG}'"
-    echo -e "  \e[1mupload\e[0m   Alias for 'bakery upload -c ${BKRY_BUILD_CONFIG}'"
+    echo -e "  \e[1mlist\e[0m     Alias for 'bkry list -c ${BKRY_BUILD_CONFIG}'"
+    echo -e "  \e[1mbuild\e[0m    Alias for 'bkry build -c ${BKRY_BUILD_CONFIG}'"
+    echo -e "  \e[1mclean\e[0m    Alias for 'bkry clean -c ${BKRY_BUILD_CONFIG}'"
+    echo -e "  \e[1msync\e[0m     Alias for 'bkry sync -c ${BKRY_BUILD_CONFIG}'"
+    echo -e "  \e[1msetup\e[0m    Alias for 'bkry setup -c ${BKRY_BUILD_CONFIG}'"
+    echo -e "  \e[1mdeploy\e[0m   Alias for 'bkry deploy -c ${BKRY_BUILD_CONFIG}'"
+    echo -e "  \e[1mupload\e[0m   Alias for 'bkry upload -c ${BKRY_BUILD_CONFIG}'"
     echo
 }
 
 list() {
-    (cd "${BKRY_WORK_DIR}"; "${BKRY_BIN_DIR}/bakery" list -c "${BKRY_BUILD_CONFIG}" "$@")
+    (cd "${BKRY_WORK_DIR}"; "${BKRY_BIN_DIR}/bkry" list -c "${BKRY_BUILD_CONFIG}" "$@")
 }
 
 ctx() {
-    (cd "${BKRY_WORK_DIR}"; "${BKRY_BIN_DIR}/bakery" list -c "${BKRY_BUILD_CONFIG}" --ctx)
+    (cd "${BKRY_WORK_DIR}"; "${BKRY_BIN_DIR}/bkry" list -c "${BKRY_BUILD_CONFIG}" --ctx)
 }
 
 version() {
-    "${BKRY_BIN_DIR}/bakery" --version
+    "${BKRY_BIN_DIR}/bkry" --version
 }
 
 config() {

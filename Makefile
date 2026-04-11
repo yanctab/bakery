@@ -10,16 +10,16 @@ export PATH := $(HOME)/.cargo/bin:$(PATH)
 help:
 	@fgrep -h "##" $(MAKEFILE_LIST) | fgrep -v fgrep | sed -e 's/\\$$//' | sed -e 's/##//'
 
-## build              - Build bakery for x86_64 using musl
+## build              - Build bkry for x86_64 using musl
 .PHONY: build
 build: build-musl
 
-## build-glibc        - Build bakery for x86_64 using glibc
+## build-glibc        - Build bkry for x86_64 using glibc
 .PHONY: build-glibc
 build-glibc:
 	cargo build
 
-## build-musl         - Build bakery for x86_64 using musl
+## build-musl         - Build bkry for x86_64 using musl
 .PHONY: build-musl
 build-musl:
 	cargo build --target x86_64-unknown-linux-musl
@@ -54,7 +54,7 @@ test:
 docs:
 	cargo doc --no-deps
 
-## cargo-install      - Install bakery under $HOME/.cargo using cargo
+## cargo-install      - Install bkry under $HOME/.cargo using cargo
 .PHONY: cargo-install
 cargo-install:
 	cargo install --path . --locked
@@ -67,7 +67,7 @@ publish-dry-run:
 ## install            - Build a release, create a deb package and install it on the system
 .PHONY: install
 install: build-release package
-	sudo dpkg -i artifacts/bakery.deb
+	sudo dpkg -i artifacts/bkry.deb
 
 ## package            - Create a debian package from the latest release build either using glibc or using musl
 .PHONY: package
@@ -98,7 +98,7 @@ setup-rust:
 setup-docker:
 	./scripts/setup-docker.sh
 
-## docker-shell       - Open a bakery workspace docker shell
+## docker-shell       - Open a Bakery workspace docker shell
 docker-shell:
 	mkdir -p $(HOME)/.cargo
 	mkdir -p $(HOME)/.rustup

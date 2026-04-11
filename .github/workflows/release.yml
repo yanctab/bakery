@@ -85,7 +85,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
       with:
         tag_name: ${{ env.CURRENT_TAG }}
-        release_name: bakery ${{ env.CURRENT_TAG }}
+        release_name: Bakery ${{ env.CURRENT_TAG }}
         body: ${{ steps.generate_release_notes.outputs.RELEASE_NOTES }}
         draft: false
         prerelease: false
@@ -96,8 +96,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/bakery-x86_64-glibc-${{ env.CURRENT_TAG }}.deb
-        asset_name: bakery-x86_64-glibc-${{ env.CURRENT_TAG }}.deb
+        asset_path: artifacts/bkry-x86_64-glibc-${{ env.CURRENT_TAG }}.deb
+        asset_name: bkry-x86_64-glibc-${{ env.CURRENT_TAG }}.deb
         asset_content_type: application/deb
 
     - name: Upload musl x86_64 Release
@@ -106,8 +106,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/bakery-x86_64-musl-${{ env.CURRENT_TAG }}.deb
-        asset_name: bakery-x86_64-musl-${{ env.CURRENT_TAG }}.deb
+        asset_path: artifacts/bkry-x86_64-musl-${{ env.CURRENT_TAG }}.deb
+        asset_name: bkry-x86_64-musl-${{ env.CURRENT_TAG }}.deb
         asset_content_type: application/deb
 
     - name: Set up Docker Buildx

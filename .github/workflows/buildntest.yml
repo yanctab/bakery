@@ -26,13 +26,13 @@ jobs:
     - name: Verify crate publishes cleanly (dry run)
       run: make publish-dry-run
 
-    - name: Install bakery via cargo install
+    - name: Install bkry via cargo install
       run: make cargo-install
 
-    - name: Verify installed bakery binary
+    - name: Verify installed bkry binary
       run: |
-        which bakery
-        bakery --help
+        which bkry
+        bkry --help
 
     - name: Build musl x86_64
       run:  cargo build --target x86_64-unknown-linux-musl --release

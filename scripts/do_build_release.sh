@@ -14,12 +14,12 @@ fi
 
 check_variant ${VARIANT}
 
-echo "INFO: build bakery v${VERSION} for ${VARIANT}"
+echo "INFO: build bkry v${VERSION} for ${VARIANT}"
 
 if [ "${VARIANT}" = "glibc" ]; then
     (cd ${WORK_DIR}; cargo build --release)
-    cp ${WORK_DIR}/target/release/bakery ${ARTIFACTS_DIR}
+    cp ${WORK_DIR}/target/release/bkry ${ARTIFACTS_DIR}
 elif [ "${VARIANT}" = "musl" ]; then
     (cd ${WORK_DIR}; cargo build --target x86_64-unknown-linux-musl --release)
-    cp ${WORK_DIR}/target/x86_64-unknown-linux-musl/release/bakery ${ARTIFACTS_DIR}
+    cp ${WORK_DIR}/target/x86_64-unknown-linux-musl/release/bkry ${ARTIFACTS_DIR}
 fi
