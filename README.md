@@ -12,6 +12,21 @@ Building complex Yocto Project or OpenEmbedded projects can often involve intric
 
 ## Installation
 
+### Cargo
+
+If you already have a Rust toolchain installed you can fetch and build
+bakery straight from [crates.io](https://crates.io/crates/thebakery):
+
+```bash
+user@node:/dir$ cargo install thebakery
+```
+
+This installs the `bakery` binary under `$HOME/.cargo/bin`, so make sure
+that directory is on your `PATH`. Note that the crate name on crates.io
+is `thebakery` while the binary it installs is called `bakery`. A Rust
+toolchain is required at install time; bakery itself still needs Docker
+at runtime (see [Docker](#docker)).
+
 ### Debian Package
 
 Download one of the deb-packages releases.
