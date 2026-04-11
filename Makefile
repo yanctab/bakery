@@ -29,35 +29,59 @@ build-musl:
 build-release:
 	./scripts/do_build_release.sh $(VARIANT)
 
-## format             - Format the code using rustfmt
-.PHONY: format
-format:
+## fmt                - Format the code using rustfmt
+.PHONY: fmt
+fmt:
 	cargo fmt
+
+## fmt-check          - Check code formatting without modifying files
+.PHONY: fmt-check
+fmt-check:
+	cargo fmt --check
+
+## lint               - Run clippy linter
+.PHONY: lint
+lint:
+	cargo clippy --locked -- -D warnings
 
 ## test               - Run tests using cargo
 .PHONY: test
 test:
 	BKRY_PKG_BUILD=test cargo test --locked
 
+## docs               - Generate documentation using cargo doc
+.PHONY: docs
+docs:
+	cargo doc --no-deps
+
 ## cargo-install      - Install bkry under $HOME/.cargo using cargo
 .PHONY: cargo-install
 cargo-install:
 	cargo install --path --locked .
 
-## install-deb        - Update the current deb bakery package by building a release, create a deb package and install it on the system
-.PHONY: install-deb
-install-deb: build-release deb-package
+## install            - Build a release, create a deb package and install it on the system
+.PHONY: install
+install: build-release package
 	sudo dpkg -i artifacts/bakery.deb
 
-## deb-package        - Create a debian package from the latest release build either using glibc or using musl
-.PHONY: deb-package
-deb-package: build-release
+## package            - Create a debian package from the latest release build either using glibc or using musl
+.PHONY: package
+package: build-release
 	./scripts/do_deb_package.sh $(VARIANT)
+
+## publish            - Publish the crate to crates.io (requires cargo login)
+.PHONY: publish
+publish:
+	cargo publish
 
 ## inc-version        - Increment minor version
 .PHONY: inc-version
 inc-version:
 	./scripts/do_inc_version.sh
+
+## setup              - Install all tools and dependencies required to work on this project
+.PHONY: setup
+setup: setup-rust setup-docker
 
 ## setup-rust         - Setup rust on local machine supports debian/ubuntu
 .PHONY: setup-rust

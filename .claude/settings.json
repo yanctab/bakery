@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Write",
+      "Bash(make *)",
+      "Bash(git *)",
+      "Bash(mkdir *)",
+      "Bash(touch *)",
+      "Bash(cp *)"
+    ]
+  }
+}
