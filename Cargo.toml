@@ -2,13 +2,12 @@
 name = "thebakery"
 version = "1.1.14"
 description = "Build engine for the Yocto/OE Projects using docker"
-catagories = ["command-line-utilities", "development-tools::build-utils"]
+categories = ["command-line-utilities", "development-tools::build-utils"]
 keywords = ["cli", "yocto", "openembedded", "build", "docker"]
 edition = "2021"
 readme = "README.md"
 repository = "https://github.com/yanctab/bakery"
 license = "Apache-2.0"
-license-file = "LICENSE"
 exclude = ["docker/", "scripts/", "Makefile", "tests/", ".*"]
 
 [[bin]]

@@ -54,10 +54,15 @@ test:
 docs:
 	cargo doc --no-deps
 
-## cargo-install      - Install bkry under $HOME/.cargo using cargo
+## cargo-install      - Install bakery under $HOME/.cargo using cargo
 .PHONY: cargo-install
 cargo-install:
-	cargo install --path --locked .
+	cargo install --path . --locked
+
+## publish-dry-run    - Run cargo publish in dry-run mode to validate the crate
+.PHONY: publish-dry-run
+publish-dry-run:
+	cargo publish --dry-run --locked
 
 ## install            - Build a release, create a deb package and install it on the system
 .PHONY: install

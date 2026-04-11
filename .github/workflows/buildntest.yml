@@ -23,6 +23,17 @@ jobs:
     - name: Check code format
       run: make fmt-check
 
+    - name: Verify crate publishes cleanly (dry run)
+      run: make publish-dry-run
+
+    - name: Install bakery via cargo install
+      run: make cargo-install
+
+    - name: Verify installed bakery binary
+      run: |
+        which bakery
+        bakery --help
+
     - name: Build musl x86_64
       run:  cargo build --target x86_64-unknown-linux-musl --release
     
