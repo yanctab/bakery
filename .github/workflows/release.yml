@@ -153,4 +153,4 @@ jobs:
       run: |
         make build-release VARIANT=musl
         cargo login ${CRATES_IO_TOKEN}
-        cargo publish
+        make publish

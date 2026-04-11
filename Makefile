@@ -69,12 +69,10 @@ install: build-release package
 package: build-release
 	./scripts/do_deb_package.sh $(VARIANT)
 
-## publish            - Publish release artifacts (handled by GitHub Actions on tag push)
+## publish            - Publish the crate to crates.io (requires cargo login)
 .PHONY: publish
 publish:
-	@echo "publish: releases are published by .github/workflows/release.yml on tag push"
-	@echo "run 'make release' to tag and trigger the release pipeline"
-	@exit 1
+	cargo publish
 
 ## inc-version        - Increment minor version
 .PHONY: inc-version
