@@ -70,13 +70,13 @@ jobs:
       run: make build-release VARIANT=glibc
 
     - name: Package glibc x86_64
-      run: make deb-package VARIANT=glibc
+      run: make package VARIANT=glibc
 
     - name: Build musl x86_64 
       run: make build-release VARIANT=musl
 
     - name: Package musl x86_64
-      run: make deb-package VARIANT=musl
+      run: make package VARIANT=musl
 
     - name: Create Release
       id: create_release
