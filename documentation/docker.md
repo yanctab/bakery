@@ -21,7 +21,7 @@ user adm cdrom sudo dip plugdev docker
 The bakery workspace image can be pulled from Github Container Registry by running
 
 ```bash
-user@node:/dir$ BAKERY_VERSION=$(bakery --version)
+user@node:/dir$ BAKERY_VERSION=$(bkry --version)
 user@node:/dir$ BAKERY_VERSION=${BAKERY_VERSION##* }
 user@node:/dir$ docker pull ghcr.io/yanctab/bakery/bakery-workspace:${BAKERY_VERSION}
 ```
@@ -46,22 +46,22 @@ If the default bakery workspace image is not enough a custome image can easily b
         }
 ```
 
-When creating the custom bakery workspace make sure to include the following
+When creating the custom Bakery workspace make sure to include the following
 
 ```bash
-# Setting up a bakery specific bash env pulled in by /etc/bash.bashrc
-# if using bakery the /etc/bakery/bakery.bashrc will be mounted into
+# Setting up a Bakery specific bash env pulled in by /etc/bash.bashrc
+# if using Bakery the /etc/bakery/bkry.bashrc will be mounted into
 # docker so the file will exists, if not the sourcing will be ignored
-RUN echo '[ -f /etc/bakery/bakery.bashrc ] && source /etc/bakery/bakery.bashrc' >> /etc/bash.bashrc
+RUN echo '[ -f /etc/bakery/bkry.bashrc ] && source /etc/bakery/bkry.bashrc' >> /etc/bash.bashrc
 ```
 
-The bakery.bashrc will enable usage of the bakery aliases in the [bakery shell](sub-commands.md).
+The bkry.bashrc will enable usage of the Bakery aliases in the [Bakery shell](sub-commands.md).
 
 ## Bootstrap Bakery
 
-When starting bakery the first step is that bakery will bootstrap its self into the bakery-workspace image. The way this works is that
-/usr/bin/bakery is mount binded inside docker using a docker --volume so the same bakery version is used inside docker as outside.
-Bakery will also require to have access to the /etc/bakery/bakery.bashrc which is also mount binded to inside docker using the
+When starting Bakery the first step is that Bakery will bootstrap itself into the bakery-workspace image. The way this works is that
+/usr/bin/bkry is mount binded inside docker using a docker --volume so the same Bakery version is used inside docker as outside.
+Bakery will also require to have access to the /etc/bakery/bkry.bashrc which is also mount binded to inside docker using the
 --volume flag.
 
 

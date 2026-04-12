@@ -1,10 +1,10 @@
 # Introduction
 
-Bakery is developed using Rust. To build the source code and utilize it instead of one of the prebuilt deb-files, Rust tools must be installed. You're free to use any version of Rust, although the specific version employed can be found in the setup-rust.sh script. It's worth noting that Bakery development primarily occurs on Ubuntu 23.04.
+Bakery is developed using Rust. To build the source code and utilize it instead of one of the prebuilt deb-files, Rust tools must be installed. You're free to use any version of Rust, although the specific version employed can be found in the setup-rust.sh script. It's worth noting that Bakery development primarily occurs on Ubuntu 23.04. The crate is published as `bkry` and installs a `bkry` binary.
 
 # Build
 
-If you are not running a Debian distribution then bakery can be built from source
+If you are not running a Debian distribution then Bakery can be built from source
 by setting up rust. Follow these steps:
 
 1. Clone the Bakery repository:

@@ -1,5 +1,5 @@
 [package]
-name = "thebakery"
+name = "bkry"
 version = "1.1.14"
 description = "Build engine for the Yocto/OE Projects using docker"
 categories = ["command-line-utilities", "development-tools::build-utils"]
@@ -11,7 +11,7 @@ license = "Apache-2.0"
 exclude = ["docker/", "scripts/", "Makefile", "tests/", ".*"]
 
 [[bin]]
-name = "bakery"
+name = "bkry"
 path = "src/main.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

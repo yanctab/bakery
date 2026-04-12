@@ -10,7 +10,7 @@ impl BkryConstants {
     pub const _WS_HIDDEN_SETTINGS: &str = ".workspace.json";
     pub const BKRY_OPT_DIR: &str = "/opt/bakery";
     pub const BKRY_CFG_DIR: &str = "/etc/bakery";
-    pub const BKRY_BIN: &str = "/usr/bin/bakery";
+    pub const BKRY_BIN: &str = "/usr/bin/bkry";
     pub const BKRY_BIN_DIR: &str = "/usr/bin";
     pub const BKRY_OPT_SCRIPTS_DIR: &str = "/opt/bakery/scripts";
     pub const BKRY_DEFAULT_CFG_DIR: &str = "configs";

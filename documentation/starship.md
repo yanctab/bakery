@@ -23,7 +23,7 @@ The actual starship config can be found at
 
    /etc/bakery/bkry-startship.toml
 
-when the bakery deb package has been installed in the bakery project it can
+when the Bakery deb package has been installed in the Bakery project it can
 be found at 
 
     https://github.com/yanctab/bakery/blob/main/scripts/bkry-starship.toml
@@ -54,16 +54,16 @@ mkdir -p ~/.cache/starship
 To enter eyecandy mode start a shell
 
 <pre>
-bakery shell -c <config> --eyecandy
+bkry shell -c <config> --eyecandy
 </pre>
 
 Or start a shell
 
 <pre>
-bakery shell -c <config>
+bkry shell -c <config>
 </pre>
 
-and then from inside the bakery shell enter eyecandy mode by running
+and then from inside the Bakery shell enter eyecandy mode by running
 
 <pre>
 eyecandy

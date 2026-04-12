@@ -1,7 +1,7 @@
 # Introduction
 
-One of the goals with bakery is to simplify it for developers that have non or very little experiance with Yocto/OE projects to get up and running but to setup bakery workspace some initial knowledge is required. When building a Yocto/OE project the meta layers are required. The meta layers contains meta data describing how to build images and all the packages that an image depends on. The meta layers are not something bakery is handling so currently this is still a manual process where a developer
-needs to decide what layers the build requires to build the desired image. Each layer could be it's own git repo so some kind of solution is required to handle multiple repos. All the layers should be placed inside the layersdir in the bakery workspace.
+One of the goals with Bakery is to simplify it for developers that have no or very little experience with Yocto/OE projects to get up and running but to setup a Bakery workspace some initial knowledge is required. When building a Yocto/OE project the meta layers are required. The meta layers contain meta data describing how to build images and all the packages that an image depends on. The meta layers are not something Bakery is handling so currently this is still a manual process where a developer
+needs to decide what layers the build requires to build the desired image. Each layer could be its own git repo so some kind of solution is required to handle multiple repos. All the layers should be placed inside the layersdir in the Bakery workspace.
 The layersdir can be defined in the [Workspace Config](workspace-config.md). Currently there are mainly two tools used to manage multiple repos
 
 * git submodules
@@ -11,7 +11,7 @@ Most HW suppliers that supports Yocto/OE is using the repo android tool but in m
 
 # Git Submodules
 
-For more information on git submodules see [Atlassian Git Submodules](https://www.atlassian.com/git/tutorials/git-submodule). In the bakery workspace if using git submodule the entire workspace will be the main git repo and then additional git submodules will be added to the main git repo. So in the workspace example bellow we could have something like
+For more information on git submodules see [Atlassian Git Submodules](https://www.atlassian.com/git/tutorials/git-submodule). In the Bakery workspace if using git submodules the entire workspace will be the main git repo and then additional git submodules will be added to the main git repo. So in the workspace example below we could have something like
 
 ```bash
     ├── .git
