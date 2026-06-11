@@ -39,6 +39,12 @@ struct ConfigTasksPayload {
     tasks: Vec<TaskEntry>,
 }
 
+#[derive(Serialize)]
+struct ConfigContextPayload {
+    config: ConfigHeader,
+    context: IndexMap<String, String>,
+}
+
 fn render_table_builds(payload: &BuildsPayload, cli: &Cli) {
     cli.stdout(format!("{:<25} {:<52}", "NAME", "DESCRIPTION"));
     for entry in &payload.builds {
@@ -65,6 +71,17 @@ fn render_table_tasks(payload: &ConfigTasksPayload, cli: &Cli) {
             task.description,
             if task.enabled { "enabled" } else { "disabled" }
         ));
+    }
+}
+
+fn render_table_context(payload: &ConfigContextPayload, cli: &Cli) {
+    cli.stdout(format!(
+        "name: {}\narch: {}\nmachine: {}\ndescription: {}\n",
+        payload.config.name, payload.config.arch, payload.config.machine, payload.config.description
+    ));
+    cli.stdout("Context variables:".to_string());
+    for (key, value) in &payload.context {
+        cli.stdout(format!("{}={}", key.to_ascii_uppercase(), value));
     }
 }
 
@@ -140,18 +157,32 @@ impl BCommand for ListCommand {
                     workspace.expand_ctx()?;
 
                     if ctx {
-                        cli.stdout(format!(
-                            "name: {}\narch: {}\nmachine: {}\ndescription: {}\n",
-                            workspace.config().build_data().name(),
-                            workspace.config().build_data().product().arch(),
-                            workspace.config().build_data().bitbake().machine(),
-                            workspace.config().build_data().product().description()
-                        ));
-                        let variables: IndexMap<String, String> = workspace.context()?;
-                        cli.stdout("Context variables:".to_string());
-                        variables.iter().for_each(|(key, value)| {
-                            cli.stdout(format!("{}={}", key.to_ascii_uppercase(), value));
-                        });
+                        let header = ConfigHeader {
+                            name: workspace.config().build_data().name().to_string(),
+                            arch: workspace.config().build_data().product().arch().to_string(),
+                            machine: workspace
+                                .config()
+                                .build_data()
+                                .bitbake()
+                                .machine()
+                                .to_string(),
+                            description: workspace
+                                .config()
+                                .build_data()
+                                .product()
+                                .description()
+                                .to_string(),
+                        };
+
+                        let payload = ConfigContextPayload {
+                            config: header,
+                            context: workspace.context()?,
+                        };
+
+                        match format.as_str() {
+                            "json" => render_json(&payload, cli)?,
+                            _ => render_table_context(&payload, cli),
+                        }
                     } else {
                         let header = ConfigHeader {
                             name: workspace.config().build_data().name().to_string(),
@@ -745,6 +776,71 @@ mod tests {
             mocked_logger,
             MockSystem::new(),
             vec!["bakery", "list", "--config", "default", "--ctx"],
+        );
+    }
+
+    #[test]
+    fn test_cmd_list_ctx_json_format() {
+        let temp_dir: TempDir =
+            TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
+        let work_dir: PathBuf = temp_dir.into_path();
+        let json_ws_settings: &str = r#"
+        {
+            "version": "6",
+            "builds": {
+                "supported": [
+                    "default"
+                ]
+            },
+            "workspace": {
+                "artifactsdir": "artifacts/$#[BKRY_NAME]"
+            }
+        }"#;
+        let json_build_config: &str = r#"
+        {
+            "version": "6",
+            "name": "default",
+            "description": "Test Description",
+            "arch": "test-arch",
+            "context": [
+                "BKRY_PLATFORM_VERSION=x.y.z",
+                "BKRY_BUILD_ID=abcdef",
+                "BKRY_BUILD_VARIANT=test"
+            ],
+            "bb": {
+                "machine": "test-machine",
+                "distro": "test-distro"
+            }
+        }
+        "#;
+        let mut mocked_logger: MockLogger = MockLogger::new();
+        mocked_logger
+            .expect_stdout()
+            .withf(|s: &String| {
+                if let Ok(v) = serde_json::from_str::<serde_json::Value>(s) {
+                    v["config"]["name"] == "default"
+                        && v["config"]["arch"] == "test-arch"
+                        && v["config"]["machine"] == "test-machine"
+                        && v["config"]["description"] == "Test Description"
+                        && v["context"]["bkry_machine"] == "test-machine"
+                        && v["context"]["bkry_arch"] == "test-arch"
+                        && v["context"]["bkry_build_variant"] == "test"
+                        && v["context"]["bkry_platform_version"] == "x.y.z"
+                        && v.as_object().unwrap().contains_key("config")
+                        && v.as_object().unwrap().contains_key("context")
+                } else {
+                    false
+                }
+            })
+            .once()
+            .returning(|_x| ());
+        let _result: Result<(), BError> = helper_test_list_subcommand(
+            &work_dir,
+            json_ws_settings,
+            json_build_config,
+            mocked_logger,
+            MockSystem::new(),
+            vec!["bakery", "list", "--config", "default", "--ctx", "--format", "json"],
         );
     }
 }
