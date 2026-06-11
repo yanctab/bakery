@@ -49,7 +49,10 @@ fn render_table_builds(payload: &BuildsPayload, cli: &Cli) {
 fn render_table_tasks(payload: &ConfigTasksPayload, cli: &Cli) {
     cli.stdout(format!(
         "name: {}\narch: {}\nmachine: {}\ndescription: {}\n",
-        payload.config.name, payload.config.arch, payload.config.machine, payload.config.description
+        payload.config.name,
+        payload.config.arch,
+        payload.config.machine,
+        payload.config.description
     ));
     cli.stdout(format!(
         "{:<15} {:<56} {}",
@@ -153,8 +156,18 @@ impl BCommand for ListCommand {
                         let header = ConfigHeader {
                             name: workspace.config().build_data().name().to_string(),
                             arch: workspace.config().build_data().product().arch().to_string(),
-                            machine: workspace.config().build_data().bitbake().machine().to_string(),
-                            description: workspace.config().build_data().product().description().to_string(),
+                            machine: workspace
+                                .config()
+                                .build_data()
+                                .bitbake()
+                                .machine()
+                                .to_string(),
+                            description: workspace
+                                .config()
+                                .build_data()
+                                .product()
+                                .description()
+                                .to_string(),
                         };
 
                         let payload = ConfigTasksPayload {
