@@ -1,10 +1,35 @@
 use indexmap::IndexMap;
+use serde::Serialize;
 
 use crate::cli::Cli;
 use crate::commands::{BBaseCommand, BCommand, BError};
 use crate::workspace::Workspace;
 
 //use clap::{ArgMatches, value_parser};
+
+#[derive(Serialize)]
+struct BuildEntry {
+    name: String,
+    description: String,
+}
+
+#[derive(Serialize)]
+struct BuildsPayload {
+    builds: Vec<BuildEntry>,
+}
+
+fn render_table_builds(payload: &BuildsPayload, cli: &Cli) {
+    cli.stdout(format!("{:<25} {:<52}", "NAME", "DESCRIPTION"));
+    for entry in &payload.builds {
+        cli.stdout(format!("{:<25} - {:<50}", entry.name, entry.description));
+    }
+}
+
+fn render_json<T: Serialize>(payload: &T, cli: &Cli) -> Result<(), BError> {
+    let json: String = serde_json::to_string_pretty(payload)?;
+    cli.stdout(json);
+    Ok(())
+}
 
 static BCOMMAND: &str = "list";
 static BCOMMAND_ABOUT: &str =
@@ -46,21 +71,25 @@ impl BCommand for ListCommand {
             .and_then(|m| m.get_one::<String>("config"))
             .cloned();
         let ctx: bool = self.get_arg_flag(cli, "ctx", BCOMMAND)?;
+        let format: String = self.get_arg_str(cli, "format", BCOMMAND)?;
 
         match config {
             None => {
                 // If no config is specified then we will list all supported build configs
-                cli.stdout(format!("{:<25} {:<52}", "NAME", "DESCRIPTION"));
-                workspace
-                    .build_configs()
-                    .iter()
-                    .for_each(|(path, description)| {
-                        cli.stdout(format!(
-                            "{:<25} - {:<50}",
-                            path.file_stem().unwrap().to_string_lossy(),
-                            description
-                        ));
-                    });
+                let payload = BuildsPayload {
+                    builds: workspace
+                        .build_configs()
+                        .iter()
+                        .map(|(path, description)| BuildEntry {
+                            name: path.file_stem().unwrap().to_string_lossy().to_string(),
+                            description: description.clone(),
+                        })
+                        .collect(),
+                };
+                match format.as_str() {
+                    "json" => render_json(&payload, cli)?,
+                    _ => render_table_builds(&payload, cli),
+                }
             }
             Some(name) => {
                 // List all tasks for a build config
@@ -133,6 +162,14 @@ impl ListCommand {
                     .action(clap::ArgAction::SetTrue)
                     .long("ctx")
                     .help("List the context variables for a build config"),
+            )
+            .arg(
+                clap::Arg::new("format")
+                    .long("format")
+                    .value_name("format")
+                    .help("Output format for the list command")
+                    .default_value("table")
+                    .value_parser(["table", "json"]),
             );
         // Initialize and return a new BuildCommand instance
         ListCommand {
@@ -195,6 +232,105 @@ mod tests {
         );
         let cmd: ListCommand = ListCommand::new();
         cmd.execute(&cli, &mut workspace)
+    }
+
+    #[test]
+    fn test_cmd_list_builds_default_table_format() {
+        let temp_dir: TempDir =
+            TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
+        let work_dir: PathBuf = temp_dir.into_path();
+        let json_ws_settings: &str = r#"
+        {
+            "version": "6",
+            "builds": {
+                "supported": [
+                    "default"
+                ]
+            }
+        }"#;
+        let json_build_config: &str = r#"
+        {
+            "version": "6",
+            "name": "default",
+            "description": "Test Description",
+            "arch": "test-arch",
+            "bb": {},
+            "tasks": {}
+        }
+        "#;
+        let mut mocked_logger: MockLogger = MockLogger::new();
+        mocked_logger
+            .expect_stdout()
+            .with(mockall::predicate::eq(format!(
+                "{:<25} {:<52}",
+                "NAME", "DESCRIPTION"
+            )))
+            .once()
+            .returning(|_x| ());
+        mocked_logger
+            .expect_stdout()
+            .with(mockall::predicate::eq(format!(
+                "{:<25} - {:<50}",
+                "default", "Test Description"
+            )))
+            .once()
+            .returning(|_x| ());
+        let _result: Result<(), BError> = helper_test_list_subcommand(
+            &work_dir,
+            json_ws_settings,
+            json_build_config,
+            mocked_logger,
+            MockSystem::new(),
+            vec!["bakery", "list"],
+        );
+    }
+
+    #[test]
+    fn test_cmd_list_builds_json_format() {
+        let temp_dir: TempDir =
+            TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
+        let work_dir: PathBuf = temp_dir.into_path();
+        let json_ws_settings: &str = r#"
+        {
+            "version": "6",
+            "builds": {
+                "supported": [
+                    "default"
+                ]
+            }
+        }"#;
+        let json_build_config: &str = r#"
+        {
+            "version": "6",
+            "name": "default",
+            "description": "Test Description",
+            "arch": "test-arch",
+            "bb": {},
+            "tasks": {}
+        }
+        "#;
+        let mut mocked_logger: MockLogger = MockLogger::new();
+        mocked_logger
+            .expect_stdout()
+            .withf(|s: &String| {
+                if let Ok(v) = serde_json::from_str::<serde_json::Value>(s) {
+                    v["builds"][0]["name"] == "default"
+                        && v["builds"][0]["description"] == "Test Description"
+                        && v.as_object().unwrap().contains_key("builds")
+                } else {
+                    false
+                }
+            })
+            .once()
+            .returning(|_x| ());
+        let _result: Result<(), BError> = helper_test_list_subcommand(
+            &work_dir,
+            json_ws_settings,
+            json_build_config,
+            mocked_logger,
+            MockSystem::new(),
+            vec!["bakery", "list", "--format", "json"],
+        );
     }
 
     #[test]

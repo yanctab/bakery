@@ -54,6 +54,20 @@ The list sub-command will list either all the available build configs in a works
 user@node:/dir$ bkry list -c <config>
 ```
 
+By default the output is rendered as a human-readable table. Pass `--format json` to get a machine-readable JSON payload suitable for scripting, e.g.:
+
+```bash
+user@node:/dir$ bkry list --format json
+```
+
+```json
+{
+  "builds": [
+    { "name": "default", "description": "Test Description" }
+  ]
+}
+```
+
 ## Context
 
 The list sub-command can also list all the context variables for a specific build config by running
