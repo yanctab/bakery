@@ -77,7 +77,10 @@ fn render_table_tasks(payload: &ConfigTasksPayload, cli: &Cli) {
 fn render_table_context(payload: &ConfigContextPayload, cli: &Cli) {
     cli.stdout(format!(
         "name: {}\narch: {}\nmachine: {}\ndescription: {}\n",
-        payload.config.name, payload.config.arch, payload.config.machine, payload.config.description
+        payload.config.name,
+        payload.config.arch,
+        payload.config.machine,
+        payload.config.description
     ));
     cli.stdout("Context variables:".to_string());
     for (key, value) in &payload.context {
@@ -840,7 +843,9 @@ mod tests {
             json_build_config,
             mocked_logger,
             MockSystem::new(),
-            vec!["bakery", "list", "--config", "default", "--ctx", "--format", "json"],
+            vec![
+                "bakery", "list", "--config", "default", "--ctx", "--format", "json",
+            ],
         );
     }
 }

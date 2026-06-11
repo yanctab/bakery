@@ -101,6 +101,29 @@ user@node:/dir$ bkry list -c <config> --ctx
 
 This will take the build config and list all the builtin context variables and any one defined in the build config. Can be usefull when setting up the initial workspace or debugging an issue.
 
+With `--format json`:
+
+```bash
+user@node:/dir$ bkry list -c <config> --ctx --format json
+```
+
+```json
+{
+  "config": {
+    "name": "default",
+    "arch": "test-arch",
+    "machine": "test-machine",
+    "description": "Test Description"
+  },
+  "context": {
+    "bkry_machine": "test-machine",
+    "bkry_arch": "test-arch"
+  }
+}
+```
+
+The `config` object has the same shape as in `bkry list -c <config> --format json` (see [List](#list)).
+
 
 # Deploy
 
