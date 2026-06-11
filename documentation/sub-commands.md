@@ -54,7 +54,9 @@ The list sub-command will list either all the available build configs in a works
 user@node:/dir$ bkry list -c <config>
 ```
 
-By default the output is rendered as a human-readable table. Pass `--format json` to get a machine-readable JSON payload suitable for scripting, e.g.:
+By default the output is rendered as a human-readable table. Pass `--format json` to get a machine-readable JSON payload suitable for scripting.
+
+For listing all builds:
 
 ```bash
 user@node:/dir$ bkry list --format json
@@ -64,6 +66,27 @@ user@node:/dir$ bkry list --format json
 {
   "builds": [
     { "name": "default", "description": "Test Description" }
+  ]
+}
+```
+
+For a specific build config:
+
+```bash
+user@node:/dir$ bkry list -c <config> --format json
+```
+
+```json
+{
+  "config": {
+    "name": "default",
+    "arch": "test-arch",
+    "machine": "test-machine",
+    "description": "Test Description"
+  },
+  "tasks": [
+    { "name": "task1", "description": "NA", "enabled": true },
+    { "name": "task2", "description": "test", "enabled": false }
   ]
 }
 ```
