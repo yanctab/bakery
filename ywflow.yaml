@@ -1,0 +1,119 @@
+context:
+  planning_model: claude-opus-4-7
+  breakdown_model: claude-sonnet-4-6
+  execute_model: claude-haiku-4-5
+  review_model: claude-sonnet-4-6
+  freestyle_model: claude-sonnet-4-6
+  project_dir: ${cwd}
+  plugin: ywflow
+
+cli:
+  command: claude
+
+setup:
+  install-plugin:
+    script: "claude plugin install yanctab/ywflow-dev"
+    description: "Install the yanctab/ywflow-dev Claude plugin"
+
+workflow:
+  session:
+    description: "A deep dive interactive planning session producing a PRD"
+    args:
+      - name: description
+        accepts:
+          - string
+        required: true
+        help: "A short description to get the interactive planning session going"
+    cli:
+      prompt: "/${plugin}:planning-session ${description}"
+      args:
+        - --model
+        - ${planning_model}
+        - --worktree
+        - --permission-mode
+        - auto
+
+  plan:
+    description: "Create a prd or verify an exiting one"
+    args:
+      - name: input
+        accepts:
+          - string
+          - file
+        required: true
+        help: "A description or a PRD file"
+    cli:
+      prompt: "/${plugin}:new-prd ${input}"
+      args:
+        - --model
+        - ${planning_model}
+        - --worktree
+        - --permission-mode
+        - auto
+
+  breakdown:
+    description: "Break down the PRD into implementation slices"
+    args:
+      - name: input
+        accepts:
+          - url
+        required: true
+        help: "URL to PRD to break down into tasks"
+    cli:
+      args:
+        - --model
+        - ${breakdown_model}
+        - --worktree
+        - --permission-mode
+        - auto
+      prompt: "/${plugin}:prd-to-issues ${input}"
+
+  execute:
+    description: "Execute a single implementation slice"
+    args:
+      - name: issue
+        accepts:
+          - url
+        required: true
+        help: "GitHub issue URL for the slice to implement"
+    cli:
+      args:
+        - --model
+        - ${execute_model}
+        - --worktree
+        - --dangerously-skip-permissions
+      prompt: "/${plugin}:execute ${issue}"
+
+  review:
+    description: "Review a PR"
+    args:
+      - name: pr
+        accepts:
+          - url
+        required: true
+        help: "GitHub PR to review"
+    cli:
+      args:
+        - --model
+        - ${review_model}
+        - --worktree
+        - --permission-mode
+        - auto
+      prompt: "/review ${pr}"
+
+  freestyle:
+    description: "A freestyle session write whatever you want"
+    args:
+      - name: input
+        accepts:
+          - string
+        required: true
+        help: "A freestyle string for the session"
+    cli:
+      args:
+        - --model
+        - ${freestyle_model}
+        - --worktree
+        - --permission-mode
+        - auto
+      prompt: "${input}"

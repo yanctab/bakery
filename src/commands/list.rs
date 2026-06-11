@@ -18,10 +18,50 @@ struct BuildsPayload {
     builds: Vec<BuildEntry>,
 }
 
+#[derive(Serialize)]
+struct ConfigHeader {
+    name: String,
+    arch: String,
+    machine: String,
+    description: String,
+}
+
+#[derive(Serialize)]
+struct TaskEntry {
+    name: String,
+    description: String,
+    enabled: bool,
+}
+
+#[derive(Serialize)]
+struct ConfigTasksPayload {
+    config: ConfigHeader,
+    tasks: Vec<TaskEntry>,
+}
+
 fn render_table_builds(payload: &BuildsPayload, cli: &Cli) {
     cli.stdout(format!("{:<25} {:<52}", "NAME", "DESCRIPTION"));
     for entry in &payload.builds {
         cli.stdout(format!("{:<25} - {:<50}", entry.name, entry.description));
+    }
+}
+
+fn render_table_tasks(payload: &ConfigTasksPayload, cli: &Cli) {
+    cli.stdout(format!(
+        "name: {}\narch: {}\nmachine: {}\ndescription: {}\n",
+        payload.config.name, payload.config.arch, payload.config.machine, payload.config.description
+    ));
+    cli.stdout(format!(
+        "{:<15} {:<56} {}",
+        "NAME", "DESCRIPTION", "ENABLED/DISABLED"
+    ));
+    for task in &payload.tasks {
+        cli.stdout(format!(
+            "{:<15} - {:<54} [{}]",
+            task.name,
+            task.description,
+            if task.enabled { "enabled" } else { "disabled" }
+        ));
     }
 }
 
@@ -95,37 +135,46 @@ impl BCommand for ListCommand {
                 // List all tasks for a build config
                 if workspace.valid_config(name.as_str()) {
                     workspace.expand_ctx()?;
-                    cli.stdout(format!(
-                        "name: {}\narch: {}\nmachine: {}\ndescription: {}\n",
-                        workspace.config().build_data().name(),
-                        workspace.config().build_data().product().arch(),
-                        workspace.config().build_data().bitbake().machine(),
-                        workspace.config().build_data().product().description()
-                    ));
 
                     if ctx {
+                        cli.stdout(format!(
+                            "name: {}\narch: {}\nmachine: {}\ndescription: {}\n",
+                            workspace.config().build_data().name(),
+                            workspace.config().build_data().product().arch(),
+                            workspace.config().build_data().bitbake().machine(),
+                            workspace.config().build_data().product().description()
+                        ));
                         let variables: IndexMap<String, String> = workspace.context()?;
                         cli.stdout("Context variables:".to_string());
                         variables.iter().for_each(|(key, value)| {
                             cli.stdout(format!("{}={}", key.to_ascii_uppercase(), value));
                         });
                     } else {
-                        cli.stdout(format!(
-                            "{:<15} {:<56} {}",
-                            "NAME", "DESCRIPTION", "ENABLED/DISABLED"
-                        ));
-                        workspace.config().tasks().iter().for_each(|(_name, task)| {
-                            cli.stdout(format!(
-                                "{:<15} - {:<54} [{}]",
-                                task.data().name(),
-                                task.data().description(),
-                                if task.data().disabled() {
-                                    "disabled"
-                                } else {
-                                    "enabled"
-                                }
-                            ));
-                        });
+                        let header = ConfigHeader {
+                            name: workspace.config().build_data().name().to_string(),
+                            arch: workspace.config().build_data().product().arch().to_string(),
+                            machine: workspace.config().build_data().bitbake().machine().to_string(),
+                            description: workspace.config().build_data().product().description().to_string(),
+                        };
+
+                        let payload = ConfigTasksPayload {
+                            config: header,
+                            tasks: workspace
+                                .config()
+                                .tasks()
+                                .iter()
+                                .map(|(_name, task)| TaskEntry {
+                                    name: task.data().name().to_string(),
+                                    description: task.data().description().to_string(),
+                                    enabled: !task.data().disabled(),
+                                })
+                                .collect(),
+                        };
+
+                        match format.as_str() {
+                            "json" => render_json(&payload, cli)?,
+                            _ => render_table_tasks(&payload, cli),
+                        }
                     }
                 } else {
                     return Err(BError::CliError(format!(
@@ -414,6 +463,75 @@ mod tests {
     }
 
     #[test]
+    fn test_cmd_list_build_config_json_format() {
+        let temp_dir: TempDir =
+            TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
+        let work_dir: PathBuf = temp_dir.into_path();
+        let json_ws_settings: &str = r#"
+        {
+            "version": "6",
+            "builds": {
+                "supported": [
+                    "default"
+                ]
+            }
+        }"#;
+        let json_build_config: &str = r#"
+        {
+            "version": "6",
+            "name": "default",
+            "description": "Test Description",
+            "arch": "test-arch",
+            "bb": {},
+            "tasks": {
+                "task1": {
+                    "index": "1",
+                    "name": "task1",
+                    "type": "non-bitbake"
+                },
+                "task2": {
+                    "index": "2",
+                    "name": "task2",
+                    "disabled": "true",
+                    "description": "test",
+                    "type": "non-bitbake"
+                }
+            }
+        }
+        "#;
+        let mut mocked_logger: MockLogger = MockLogger::new();
+        mocked_logger
+            .expect_stdout()
+            .withf(|s: &String| {
+                if let Ok(v) = serde_json::from_str::<serde_json::Value>(s) {
+                    v["config"]["name"] == "default"
+                        && v["config"]["arch"] == "test-arch"
+                        && v["config"]["machine"] == "NA"
+                        && v["config"]["description"] == "Test Description"
+                        && v["tasks"][0]["name"] == "task1"
+                        && v["tasks"][0]["enabled"] == true
+                        && v["tasks"][1]["name"] == "task2"
+                        && v["tasks"][1]["enabled"] == false
+                        && v["tasks"][1]["description"] == "test"
+                        && v.as_object().unwrap().contains_key("config")
+                        && v.as_object().unwrap().contains_key("tasks")
+                } else {
+                    false
+                }
+            })
+            .once()
+            .returning(|_x| ());
+        let _result: Result<(), BError> = helper_test_list_subcommand(
+            &work_dir,
+            json_ws_settings,
+            json_build_config,
+            mocked_logger,
+            MockSystem::new(),
+            vec!["bakery", "list", "--config", "default", "--format", "json"],
+        );
+    }
+
+    #[test]
     fn test_cmd_list_invalid_build_config() {
         let temp_dir: TempDir =
             TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
@@ -459,6 +577,52 @@ mod tests {
         match result {
             Ok(_status) => {
                 panic!("We should have recived an error because the config is invalid!");
+            }
+            Err(e) => {
+                assert_eq!(
+                    e.to_string(),
+                    "Unsupported build config 'invalid'".to_string()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_cmd_list_invalid_build_config_json_format() {
+        let temp_dir: TempDir =
+            TempDir::new("bakery-test-dir").expect("Failed to create temp directory");
+        let work_dir: PathBuf = temp_dir.into_path();
+        let json_ws_settings: &str = r#"
+        {
+            "version": "6",
+            "builds": {
+                "supported": [
+                    "default"
+                ]
+            }
+        }"#;
+        let json_build_config: &str = r#"
+        {
+            "version": "6",
+            "name": "default",
+            "description": "Test Description",
+            "arch": "test-arch",
+            "bb": {},
+            "tasks": {}
+        }
+        "#;
+        let mocked_logger: MockLogger = MockLogger::new();
+        let result: Result<(), BError> = helper_test_list_subcommand(
+            &work_dir,
+            json_ws_settings,
+            json_build_config,
+            mocked_logger,
+            MockSystem::new(),
+            vec!["bakery", "list", "--config", "invalid", "--format", "json"],
+        );
+        match result {
+            Ok(_status) => {
+                panic!("We should have received an error because the config is invalid!");
             }
             Err(e) => {
                 assert_eq!(
