@@ -40,64 +40,70 @@ impl BCommand for ListCommand {
     }
 
     fn execute(&self, cli: &Cli, workspace: &mut Workspace) -> Result<(), BError> {
-        let config: String = self.get_arg_str(cli, "config", BCOMMAND)?;
+        let config: Option<String> = cli
+            .get_args()
+            .subcommand_matches(BCOMMAND)
+            .and_then(|m| m.get_one::<String>("config"))
+            .cloned();
         let ctx: bool = self.get_arg_flag(cli, "ctx", BCOMMAND)?;
 
-        if config == "NA" {
-            // default value if not specified
-            // If no config is specified then we will list all supported build configs
-            cli.stdout(format!("{:<25} {:<52}", "NAME", "DESCRIPTION"));
-            workspace
-                .build_configs()
-                .iter()
-                .for_each(|(path, description)| {
-                    cli.stdout(format!(
-                        "{:<25} - {:<50}",
-                        path.file_stem().unwrap().to_string_lossy(),
-                        description
-                    ));
-                });
-        } else {
-            // List all tasks for a build config
-            if workspace.valid_config(config.as_str()) {
-                workspace.expand_ctx()?;
-                cli.stdout(format!(
-                    "name: {}\narch: {}\nmachine: {}\ndescription: {}\n",
-                    workspace.config().build_data().name(),
-                    workspace.config().build_data().product().arch(),
-                    workspace.config().build_data().bitbake().machine(),
-                    workspace.config().build_data().product().description()
-                ));
-
-                if ctx {
-                    let variables: IndexMap<String, String> = workspace.context()?;
-                    cli.stdout("Context variables:".to_string());
-                    variables.iter().for_each(|(key, value)| {
-                        cli.stdout(format!("{}={}", key.to_ascii_uppercase(), value));
-                    });
-                } else {
-                    cli.stdout(format!(
-                        "{:<15} {:<56} {}",
-                        "NAME", "DESCRIPTION", "ENABLED/DISABLED"
-                    ));
-                    workspace.config().tasks().iter().for_each(|(_name, task)| {
+        match config {
+            None => {
+                // If no config is specified then we will list all supported build configs
+                cli.stdout(format!("{:<25} {:<52}", "NAME", "DESCRIPTION"));
+                workspace
+                    .build_configs()
+                    .iter()
+                    .for_each(|(path, description)| {
                         cli.stdout(format!(
-                            "{:<15} - {:<54} [{}]",
-                            task.data().name(),
-                            task.data().description(),
-                            if task.data().disabled() {
-                                "disabled"
-                            } else {
-                                "enabled"
-                            }
+                            "{:<25} - {:<50}",
+                            path.file_stem().unwrap().to_string_lossy(),
+                            description
                         ));
                     });
+            }
+            Some(name) => {
+                // List all tasks for a build config
+                if workspace.valid_config(name.as_str()) {
+                    workspace.expand_ctx()?;
+                    cli.stdout(format!(
+                        "name: {}\narch: {}\nmachine: {}\ndescription: {}\n",
+                        workspace.config().build_data().name(),
+                        workspace.config().build_data().product().arch(),
+                        workspace.config().build_data().bitbake().machine(),
+                        workspace.config().build_data().product().description()
+                    ));
+
+                    if ctx {
+                        let variables: IndexMap<String, String> = workspace.context()?;
+                        cli.stdout("Context variables:".to_string());
+                        variables.iter().for_each(|(key, value)| {
+                            cli.stdout(format!("{}={}", key.to_ascii_uppercase(), value));
+                        });
+                    } else {
+                        cli.stdout(format!(
+                            "{:<15} {:<56} {}",
+                            "NAME", "DESCRIPTION", "ENABLED/DISABLED"
+                        ));
+                        workspace.config().tasks().iter().for_each(|(_name, task)| {
+                            cli.stdout(format!(
+                                "{:<15} - {:<54} [{}]",
+                                task.data().name(),
+                                task.data().description(),
+                                if task.data().disabled() {
+                                    "disabled"
+                                } else {
+                                    "enabled"
+                                }
+                            ));
+                        });
+                    }
+                } else {
+                    return Err(BError::CliError(format!(
+                        "Unsupported build config '{}'",
+                        name
+                    )));
                 }
-            } else {
-                return Err(BError::CliError(format!(
-                    "Unsupported build config '{}'",
-                    config
-                )));
             }
         }
 
@@ -114,8 +120,7 @@ impl ListCommand {
                     .short('c')
                     .long("config")
                     .help("The build config defining all the components for the full build")
-                    .value_name("name")
-                    .default_value("NA"),
+                    .value_name("name"),
             )
             .arg(
                 clap::Arg::new("verbose")
